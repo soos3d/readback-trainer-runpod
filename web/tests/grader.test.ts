@@ -46,6 +46,14 @@ describe("normalize §11.1", () => {
   test("multi-digit Whisper tokens do not merge with neighbours", () => {
     expect(normalize("7000 10 minutes")).toEqual(["7000", "10", "minutes"]);
   });
+  test("a callsign after a number starts a new run, with or without a comma", () => {
+    expect(normalize("heading two eight zero, november niner one zero five five")).toEqual(["heading", "280", "n91055"]);
+    expect(normalize("heading two eight zero november niner one zero five five")).toEqual(["heading", "280", "n91055"]);
+  });
+  test("a comma ends a run; N inside a tail does not", () => {
+    expect(normalize("squawk four five two one, one two one point eight")).toEqual(["squawk", "4521", "121.8"]);
+    expect(normalize("november one two november")).toEqual(["n12n"]);
+  });
 });
 
 describe("grade: IFR clearance §12.3", () => {

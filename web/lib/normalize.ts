@@ -19,19 +19,25 @@ function clean(transcript: string): string[] {
     .toLowerCase()
     .replace(/x-ray/g, "xray")
     .replace(/(\d),(?=\d{3})/g, "$1")
-    .replace(/[^a-z0-9.\s]/g, " ")
+    .replace(/,/g, " , ")
+    .replace(/[^a-z0-9.,\s]/g, " ")
     .replace(/(?<!\d)\.|\.(?!\d)/g, " ")
     .split(/\s+/)
     .filter(Boolean);
 }
 
-/** Joins single digits/letters into runs ("1 1 9 . 4" → "119.4"); multi-character tokens stay alone. */
+/** Joins single digits/letters into runs ("1 1 9 . 4" → "119.4"); multi-character tokens stay alone.
+ * A comma ends a run, and "N" after an all-digit run starts a callsign ("2 8 0 N 9" → "280", "N9"). */
 function merge(tokens: string[]): string[] {
   const out: string[] = [];
   let open = false;
   for (const t of tokens) {
     const last = out.length - 1;
-    if (t === "." && last >= 0) {
+    if (t === ",") {
+      open = false;
+    } else if (open && t === "N" && /^\d+$/.test(out[last])) {
+      out.push(t);
+    } else if (t === "." && last >= 0) {
       out[last] += t;
       open = true;
     } else if (open && /^[0-9A-Z]$/.test(t)) {
