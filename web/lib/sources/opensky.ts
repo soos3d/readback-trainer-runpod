@@ -89,7 +89,7 @@ export async function getFlight(icao: string, direction: Direction, opts: Flight
     ? () => simulatedOutage("opensky")
     : () => loadCandidates(icao, direction, now, begin);
   try {
-    const r = await withCache(`opensky:${icao}:${direction}:${date}`, { ...FLIGHT_TTL, now }, load);
+    const r = await withCache(`opensky:${icao}:${direction}:${date}`, { ...FLIGHT_TTL, now, skipFresh: opts.simulateDown }, load);
     if (r.value.length === 0) {
       return synthetic(icao, direction, seed, "No GA flights found yesterday — made-up callsign");
     }

@@ -58,12 +58,13 @@ export type CacheResult<T> = { value: T; fresh: boolean; age_ms: number };
 // The caller owns the key namespace, so each key always holds the same T.
 export async function withCache<T>(
   key: string,
-  { freshMs, staleMs, now }: { freshMs: number; staleMs: number; now: number },
+  // skipFresh: demo simulate acts like a live outage, so a fresh hit still goes through the failing loader.
+  { freshMs, staleMs, now, skipFresh = false }: { freshMs: number; staleMs: number; now: number; skipFresh?: boolean },
   load: () => Promise<T>,
 ): Promise<CacheResult<T>> {
   const hit = cache.get(key);
   const age = hit ? now - hit.at : Infinity;
-  if (hit && age <= freshMs) return { value: hit.value as T, fresh: true, age_ms: age };
+  if (hit && age <= freshMs && !skipFresh) return { value: hit.value as T, fresh: true, age_ms: age };
   try {
     const value = await load();
     cache.set(key, { value, at: now });

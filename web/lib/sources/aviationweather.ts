@@ -69,7 +69,7 @@ export async function getWeather(icao: string, opts: SourceOpts = {}): Promise<S
     ? () => simulatedOutage("aviationweather")
     : async () => toWeather(AwcMetar.parse(await getAwc("metar", icao))[0]);
   try {
-    const r = await withCache(`awc:metar:${icao}`, { ...METAR_TTL, now }, load);
+    const r = await withCache(`awc:metar:${icao}`, { ...METAR_TTL, now, skipFresh: opts.simulateDown }, load);
     if (r.fresh) return { data: r.value, provenance: { source: "live" }, warnings: [] };
     const age_min = Math.round(r.age_ms / MIN);
     return {
@@ -114,7 +114,7 @@ export async function getAirportInfo(icao: string, opts: SourceOpts = {}): Promi
   const now = (opts.now ?? Date.now)();
   const load = opts.simulateDown ? () => simulatedOutage("aviationweather") : () => loadAirport(icao);
   try {
-    const r = await withCache(`awc:airport:${icao}`, { ...AIRPORT_TTL, now }, load);
+    const r = await withCache(`awc:airport:${icao}`, { ...AIRPORT_TTL, now, skipFresh: opts.simulateDown }, load);
     if (r.fresh) return { data: r.value, provenance: { source: "live" }, warnings: [] };
     return {
       data: r.value,

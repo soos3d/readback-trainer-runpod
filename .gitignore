@@ -11,3 +11,4 @@ coverage/
 next-env.d.ts
 .claude/worktrees/
 speech/*-artifact.tar.gz
+web/AGENTS.md

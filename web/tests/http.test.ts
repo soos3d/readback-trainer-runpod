@@ -91,6 +91,11 @@ describe("withCache", () => {
     expect(await http.withCache("k", { ...ttl, now: 4000 }, fail)).toEqual({ value: "v", fresh: false, age_ms: 4000 });
   });
 
+  test("skipFresh (demo simulate) ignores a fresh hit and falls back to it as stale", async () => {
+    await http.withCache("k", { ...ttl, now: 0 }, async () => "v");
+    expect(await http.withCache("k", { ...ttl, now: 500, skipFresh: true }, fail)).toEqual({ value: "v", fresh: false, age_ms: 500 });
+  });
+
   test("rethrows when the entry is past stale or the error is not upstream", async () => {
     await http.withCache("k", { ...ttl, now: 0 }, async () => "v");
     await expect(http.withCache("k", { ...ttl, now: 5001 }, fail)).rejects.toBeInstanceOf(ApiError);
