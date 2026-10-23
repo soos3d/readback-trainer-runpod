@@ -42,3 +42,15 @@
 **runSync can't be bounded or cancelled from outside.** It takes no AbortSignal, and its timeout restarts after the first `/runsync` returns. `lib/runpod.ts` races it against its own 80 s timer and maps the deadline to `SpeechWarming`. The losing runSync keeps polling `/status-sync` until its own timeout (up to about 160 s more) and its result is dropped. Status polls aren't billed, and the queued job keeps warming the worker.
 
 **runSync's poll logging stays.** Every poll writes `<job id>: <status>` through `console.log` (`const print = console.log` in `dist/src/index.js`). The lines carry a job id and a status, no input or secret. We don't monkeypatch `console`. A cold start adds a few log lines per request on the Pod.
+
+## 2026-10-23 · T10 worker build (runpod 2.0.0rc1, offline)
+
+**Torch is excluded by name, not by dependency.** `runpod/apps/build.py` removes `torch`, `torchvision`, `torchaudio` and `triton` from the top-level requirement list, then vendors the rest with `pip install --target env/ --platform manylinux… --only-binary :all:`. pip still resolves dependencies, so any package that depends on torch (kokoro, accelerate, spacy-curated-transformers) brings torch back. A dry run resolved `torch 2.14.1` into the artifact. pip evaluates the `platform_system == "Linux"` markers against the Mac that runs the deploy, so the nvidia-* CUDA wheels were left out as well.
+
+**The vendored env comes first on the worker.** `runpod_sdk_runtime/bootstrap.py` `_attach()` prepends `env/` to `PYTHONPATH`, so a vendored torch would replace the image's `torch==2.9.1+cu128` (`docker/gpu-base.Dockerfile` in github.com/runpod-workers/sdk-runtime).
+
+**Workaround.** `main.py` sets `os.environ.setdefault("PIP_NO_DEPS", "1")`. `rp` imports `main.py` in-process to discover the app, so its pip subprocess inherits the variable. `requirements.txt` then pins the full closure without torch, sympy, mpmath, networkx and triton, plus the runtime's own packages (aiohttp, yarl, multidict…). `rp flash deploy --build-only` produced a 223.8 MB artifact with no torch, nvidia or triton entries. Regenerate the closure with `pip install --dry-run --report` using the same `--platform` flags whenever a direct pin changes.
+
+**`system_dependencies` run apt on every cold start.** The bootstrap runs `apt-get update` and `apt-get install` for each `system_dependencies` entry at boot, so each package adds seconds to every cold start. Kokoro's espeak-ng comes bundled in the `espeakng-loader` wheel, so the worker lists none.
+
+**`--build-only` needs no API key.** It writes `<app>-artifact.tar.gz` next to the source and imports every `.py` in the folder, test files included. `.runpodignore` keeps `test_*.py` out of the tarball; discovery still imports them.
