@@ -173,7 +173,7 @@ Details, timeouts and caches: [docs/architecture.md](docs/architecture.md).
 
 - AviationWeather.gov: no key, at most 100 requests per minute, `User-Agent` required. The app caches METARs for 5 min (usable for 3 h after an outage) and airport info for 24 h.
 - OpenSky Network: 4,000 credits per day for a registered account. Recording the test fixtures, 6 flight calls cost 180 credits. The app caches each airport's departure and arrival lists for 6 h, and the OAuth token until 60 s before it expires.
-- Runpod bills by use. The worker scales to zero, so you pay for GPU seconds while a worker runs, including the 5 min idle timeout after the last job. The Pod bills by the hour until you stop it.
+- Runpod bills by use. The worker scales to zero, so you pay for GPU seconds while a worker runs, including the 5 min idle timeout after the last job (about $0.10 per practice session). The Pod bills by the hour until you stop it. Full breakdown, warm-up options, and how to stop billing: [docs/costs.md](docs/costs.md).
 
 ## Rate limits and outages
 
