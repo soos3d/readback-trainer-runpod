@@ -1,4 +1,5 @@
 // Transcript + scenario → GradeResult (SPEC §11). Deterministic; no LLM.
+import { ApiError } from "./errors";
 import { normalize } from "./normalize";
 import { abbreviatedCallsign, altitude } from "./phraseology";
 import { isTodo, type ExpectedItem, type GradeResult, type Kind, type Scenario } from "./schemas";
@@ -154,7 +155,7 @@ const tip = (i: Item): string =>
 
 export function grade(scenario: Pick<Scenario, "expected">, transcript: string): GradeResult {
   const required = scenario.expected.filter((i) => !isTodo(i.value));
-  if (required.length === 0) throw new Error("grader: scenario has no gradable items");
+  if (required.length === 0) throw new ApiError(422, "invalid_input", "scenario has no gradable items", "web");
   const items = gradeItems(normalize(transcript), required);
   const correct = items.filter((i) => i.status === "correct").length;
   const verdict = items.some((i) => i.status === "incorrect")
