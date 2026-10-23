@@ -1,0 +1,34 @@
+[
+  {
+    "icaoId": "KTTD",
+    "iataId": "TTD",
+    "faaId": "TTD",
+    "name": "PORTLAND/PORTLAND-TROUTDALE ",
+    "state": "OR",
+    "country": "US",
+    "source": "FAA",
+    "type": "ARP",
+    "lat": 45.5494,
+    "lon": -122.4013,
+    "elev": 11,
+    "magdec": "16E",
+    "owner": "P",
+    "rwyNum": "1",
+    "rwyLength": "M",
+    "rwyType": "A",
+    "services": "S",
+    "tower": "T",
+    "beacon": "B",
+    "operations": "0",
+    "freqs": "LCL/P,120.9;ATIS,135.625",
+    "priority": "5",
+    "runways": [
+      {
+        "id": "07/25",
+        "dimension": "5399x150",
+        "surface": "A",
+        "alignment": 89
+      }
+    ]
+  }
+]
