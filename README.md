@@ -148,6 +148,8 @@ Teardown: `rp flash undeploy --app readback-speech --env default`, terminate the
 
 ## Architecture
 
+The whole app runs on Runpod: the Next.js UI and API on a CPU Pod, the speech models on a Serverless GPU endpoint. A variant with the UI on Vercel is described in [docs/architecture.md](docs/architecture.md#hosting-options).
+
 ```mermaid
 flowchart LR
   B[Browser<br/>React UI, mic recorder] -->|/api/*| N

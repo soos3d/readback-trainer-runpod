@@ -12,7 +12,6 @@ What each piece of Readback Trainer bills, how to keep it small, and how to stop
 | Next.js API backend | Runpod CPU Pod (`cpu3c`) | Every hour the Pod runs, busy or idle | $0.04 per vCPU-hour (2 vCPU ≈ $0.08/hr ≈ $1.92/day) | Smallest size that builds Next.js |
 | Pod container disk | Runpod | While the Pod exists, stopped or running | $0.10 per GB-month | A few GB; cents per day |
 | Pod volume disk | Runpod | Running $0.10, stopped $0.20 per GB-month | — | Not used |
-| Frontend | Vercel Hobby | — | $0 on the free tier | No secrets, no functions besides the `/api/*` rewrite |
 | AviationWeather.gov, OpenSky | External | — | $0 (rate-limited, see README) | Cached in the Pod process |
 
 Runpod applies a default account spend limit of $80/hour across all resources.

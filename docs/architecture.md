@@ -86,3 +86,31 @@ Every route returns `{error: {code, message, source}}` on failure.
 | 503 | `speech_warming` | `runSync` reached 80 s while the job was queued |
 
 Server logs hold route, status, latency, cache hit and fallback flags only. Audio and transcripts are never stored or logged.
+
+## Hosting options
+
+### Built: everything on Runpod
+
+The whole Next.js app (UI and API routes) runs on one Runpod CPU Pod, and the speech models run on a Runpod Serverless GPU endpoint. We chose this because the sample shows two Runpod products working together: an always-on CPU Pod for the web app and a scale-to-zero GPU endpoint for inference. Every key lives in the Pod's environment, and the browser talks to one origin.
+
+### Option, not built: UI on Vercel, API on Runpod
+
+Deploy the same Next.js app twice. Vercel serves the pages and rewrites `/api/*` to the Pod, so the browser still sees one origin and Vercel holds no secrets:
+
+```ts
+// web/next.config.ts — the only code change
+const nextConfig: NextConfig = {
+  async rewrites() {
+    const api = process.env.API_ORIGIN; // e.g. https://<POD_ID>-3000.proxy.runpod.net; unset on the Pod
+    return api ? [{ source: "/api/:path*", destination: `${api}/api/:path*` }] : [];
+  },
+};
+```
+
+What it buys: the page stays up when the Pod is stopped or not deployed, so users see the app and a clear "backend offline" state instead of a dead URL.
+
+What it costs:
+- Behind the rewrite, the Pod sees Vercel's IP in `cf-connecting-ip`, so `lib/rateLimit.ts` would put every user in one bucket. Key on the first `x-forwarded-for` entry instead. A caller who hits the Pod directly can forge that header; GPU spend stays capped by `workers=(0, 1)`.
+- Two deploys to keep in sync, and the UI still needs the Pod for every call, warm-up, and grade.
+
+For this sample, that trade isn't worth it. Pick it if you need the UI online while the backend is off.
