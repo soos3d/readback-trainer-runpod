@@ -10,3 +10,4 @@ coverage/
 .DS_Store
 next-env.d.ts
 .claude/worktrees/
+speech/*-artifact.tar.gz
