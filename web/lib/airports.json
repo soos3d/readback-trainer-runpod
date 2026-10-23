@@ -1,0 +1,48 @@
+{
+  "KTTD": {
+    "radio_name": "Troutdale",
+    "clearance": { "name": "TODO", "freq": "TODO" },
+    "tower_fallback_freq": "TODO",
+    "departure": { "name": "TODO", "freq": "TODO" },
+    "approach": { "name": "TODO", "freq": "TODO" },
+    "calm_wind_runway": "TODO",
+    "approaches": "TODO",
+    "nearby_destinations": "TODO",
+    "min_vector_altitude": "TODO",
+    "max_assign_altitude": "TODO",
+    "runways_fallback": [{ "id": "07/25", "alignment": 89 }]
+  },
+  "KORL": {
+    "radio_name": "Executive",
+    "clearance": { "name": "TODO", "freq": "TODO" },
+    "tower_fallback_freq": "TODO",
+    "departure": { "name": "TODO", "freq": "TODO" },
+    "approach": { "name": "TODO", "freq": "TODO" },
+    "calm_wind_runway": "TODO",
+    "approaches": "TODO",
+    "nearby_destinations": "TODO",
+    "min_vector_altitude": "TODO",
+    "max_assign_altitude": "TODO",
+    "runways_fallback": [
+      { "id": "07/25", "alignment": 67 },
+      { "id": "13/31", "alignment": 131 }
+    ]
+  },
+  "KVGT": {
+    "radio_name": "North Las Vegas",
+    "clearance": { "name": "TODO", "freq": "TODO" },
+    "tower_fallback_freq": "TODO",
+    "departure": { "name": "TODO", "freq": "TODO" },
+    "approach": { "name": "TODO", "freq": "TODO" },
+    "calm_wind_runway": "TODO",
+    "approaches": "TODO",
+    "nearby_destinations": "TODO",
+    "min_vector_altitude": "TODO",
+    "max_assign_altitude": "TODO",
+    "runways_fallback": [
+      { "id": "07/25", "alignment": 88 },
+      { "id": "12L/30R", "alignment": 134 },
+      { "id": "12R/30L", "alignment": 134 }
+    ]
+  }
+}
