@@ -36,3 +36,9 @@
 **Cache survives on a warm worker.** Two pings 1 s apart both returned `load_count: 1` from worker `1wpo89df4y98tb`.
 
 **Timings (ping, measured from the client).** First job after deploy: 28.9 s (`delayTime` 28.3 s). Cold start after the worker scaled to zero: 15.2 s; FlashBoot is on by default. Warm: 0.4 s. After scale-down, `/health` reports `workers: {idle: 1, ready: 1, running: 0}`, so `idle` alone does not mean a billed worker. Use `running` to check for one.
+
+## 2026-10-23 · T12 part 1 (`web/lib/runpod.ts`, runpod-sdk 1.1.2)
+
+**runSync can't be bounded or cancelled from outside.** It takes no AbortSignal, and its timeout restarts after the first `/runsync` returns. `lib/runpod.ts` races it against its own 80 s timer and maps the deadline to `SpeechWarming`. The losing runSync keeps polling `/status-sync` until its own timeout (up to about 160 s more) and its result is dropped. Status polls aren't billed, and the queued job keeps warming the worker.
+
+**runSync's poll logging stays.** Every poll writes `<job id>: <status>` through `console.log` (`const print = console.log` in `dist/src/index.js`). The lines carry a job id and a status, no input or secret. We don't monkeypatch `console`. A cold start adds a few log lines per request on the Pod.
