@@ -1,0 +1,26 @@
+[
+  {
+    "icaoId": "KORL",
+    "receiptTime": "2026-10-23T14:58:08.770Z",
+    "obsTime": 1792767240,
+    "reportTime": "2026-10-23T15:00:00.000Z",
+    "temp": 23.9,
+    "dewp": 13.3,
+    "wdir": 20,
+    "wspd": 12,
+    "wgst": 18,
+    "visib": "10+",
+    "altim": 1019,
+    "slp": 1019.4,
+    "qcField": 12,
+    "metarType": "METAR",
+    "rawOb": "METAR KORL 231454Z 02012G18KT 10SM CLR 24/13 A3009 RMK AO2 SLP194 T02390133 $",
+    "lat": 28.5465,
+    "lon": -81.3354,
+    "elev": 32,
+    "name": "Orlando/Executive, FL, US",
+    "cover": "CLR",
+    "clouds": [],
+    "fltCat": "VFR"
+  }
+]

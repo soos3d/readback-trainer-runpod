@@ -1,0 +1,26 @@
+[
+  {
+    "icaoId": "KVGT",
+    "receiptTime": "2026-10-23T14:57:01.592Z",
+    "obsTime": 1792767180,
+    "reportTime": "2026-10-23T15:00:00.000Z",
+    "temp": 13.3,
+    "dewp": 6.1,
+    "wdir": 350,
+    "wspd": 6,
+    "visib": "10+",
+    "altim": 1015.3,
+    "slp": 1016.2,
+    "qcField": 4,
+    "presTend": 1.3,
+    "metarType": "METAR",
+    "rawOb": "METAR KVGT 231453Z 35006KT 10SM CLR 13/06 A2998 RMK AO2 SLP162 T01330061 53013",
+    "lat": 36.212,
+    "lon": -115.194,
+    "elev": 664,
+    "name": "Las Vegas/North Arpt, NV, US",
+    "cover": "CLR",
+    "clouds": [],
+    "fltCat": "VFR"
+  }
+]

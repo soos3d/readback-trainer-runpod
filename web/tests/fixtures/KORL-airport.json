@@ -1,0 +1,40 @@
+[
+  {
+    "icaoId": "KORL",
+    "iataId": "ORL",
+    "faaId": "ORL",
+    "name": "ORLANDO/EXEC ",
+    "state": "FL",
+    "country": "US",
+    "source": "FAA",
+    "type": "ARP",
+    "lat": 28.5455,
+    "lon": -81.3329,
+    "elev": 34,
+    "magdec": "06W",
+    "owner": "P",
+    "rwyNum": "2",
+    "rwyLength": "M",
+    "rwyType": "A",
+    "services": "S",
+    "tower": "T",
+    "beacon": "B",
+    "operations": "0",
+    "freqs": "LCL/P,118.7;ATIS,127.25",
+    "priority": "5",
+    "runways": [
+      {
+        "id": "07/25",
+        "dimension": "6004x150",
+        "surface": "A",
+        "alignment": 67
+      },
+      {
+        "id": "13/31",
+        "dimension": "4625x100",
+        "surface": "A",
+        "alignment": 131
+      }
+    ]
+  }
+]

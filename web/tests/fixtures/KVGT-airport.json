@@ -1,0 +1,46 @@
+[
+  {
+    "icaoId": "KVGT",
+    "iataId": "VGT",
+    "faaId": "VGT",
+    "name": "LAS VEGAS/NORTH LAS VEGAS ",
+    "state": "NV",
+    "country": "US",
+    "source": "FAA",
+    "type": "ARP",
+    "lat": 36.2107,
+    "lon": -115.1944,
+    "elev": 672,
+    "magdec": "14E",
+    "owner": "P",
+    "rwyNum": "3",
+    "rwyLength": "M",
+    "rwyType": "A",
+    "services": "S",
+    "tower": "T",
+    "beacon": "B",
+    "operations": "0",
+    "freqs": "ATIS,118.05;LCL/P,125.7",
+    "priority": "5",
+    "runways": [
+      {
+        "id": "07/25",
+        "dimension": "5005x75",
+        "surface": "A",
+        "alignment": 88
+      },
+      {
+        "id": "12L/30R",
+        "dimension": "4199x75",
+        "surface": "A",
+        "alignment": 134
+      },
+      {
+        "id": "12R/30L",
+        "dimension": "5000x75",
+        "surface": "A",
+        "alignment": 134
+      }
+    ]
+  }
+]

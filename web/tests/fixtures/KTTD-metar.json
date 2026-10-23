@@ -1,0 +1,31 @@
+[
+  {
+    "icaoId": "KTTD",
+    "receiptTime": "2026-10-23T14:57:02.069Z",
+    "obsTime": 1792767180,
+    "reportTime": "2026-10-23T15:00:00.000Z",
+    "temp": 6.7,
+    "dewp": 3.9,
+    "wdir": 0,
+    "wspd": 0,
+    "visib": "10+",
+    "altim": 1024.5,
+    "slp": 1024.3,
+    "qcField": 4,
+    "presTend": 1.9,
+    "metarType": "METAR",
+    "rawOb": "METAR KTTD 231453Z 00000KT 10SM FEW047 07/04 A3025 RMK AO2 SLP243 T00670039 51019",
+    "lat": 45.551,
+    "lon": -122.4098,
+    "elev": 8,
+    "name": "Portland/Troutdale Arpt, OR, US",
+    "cover": "FEW",
+    "clouds": [
+      {
+        "cover": "FEW",
+        "base": 4700
+      }
+    ],
+    "fltCat": "VFR"
+  }
+]
