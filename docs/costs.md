@@ -30,7 +30,7 @@ A session is: page load (warm-up ping), a few calls, a few readbacks, then the u
 
 The idle tail dominates. Lowering `idle_timeout` to 60 s cuts it to ≈ $0.02 per session, at the price of more 30 s cold starts when a user pauses for more than a minute.
 
-Measured cold ping: 32.6 s end to end (22.3 s waiting for a worker, 10.0 s running with both models loaded). Warm: ping 0.4 s, tts 1.3 s, transcribe 2.1 s (T12).
+Measured (T12): cold ping 29–33 s end to end (about 22 s waiting for a worker, 10 s loading both models), then cold tts 3.3 s and transcribe 2.3 s. Warm: ping 0.4–1.1 s, tts 1.4 s, transcribe 1.9 s.
 
 ## Keeping the GPU ready without paying for it all day
 
@@ -48,7 +48,8 @@ FlashBoot snapshots are tied to a host and image, so a scale-up that lands on a 
 | Step | GPU / Pod time | Cost |
 |---|---|---|
 | T02 spike (ping worker) | ≈ 13 worker-minutes | ≈ $0.25 (estimate from the list rate) |
-| T12 deploy and smoke | See `handoff/T12.md` | Pending |
+| T12 deploy and smoke | ≈ 24 worker-minutes | ≈ $0.45 (estimate) |
+| **Total so far** | | **≈ $0.70 of the $10 cap** |
 
 ## How to stop billing
 
