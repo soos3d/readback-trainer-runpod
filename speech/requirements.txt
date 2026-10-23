@@ -1,0 +1,2 @@
+runpod==2.0.0rc1
+pytest==9.1.1
