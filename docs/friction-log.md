@@ -54,3 +54,11 @@
 **`system_dependencies` run apt on every cold start.** The bootstrap runs `apt-get update` and `apt-get install` for each `system_dependencies` entry at boot, so each package adds seconds to every cold start. Kokoro's espeak-ng comes bundled in the `espeakng-loader` wheel, so the worker lists none.
 
 **`--build-only` needs no API key.** It writes `<app>-artifact.tar.gz` next to the source and imports every `.py` in the folder, test files included. `.runpodignore` keeps `test_*.py` out of the tarball; discovery still imports them.
+
+## 2026-10-23 · T12 part 2 (first deploy of the full worker)
+
+**A redeploy doesn't take effect right away.** `rp flash deploy` printed "readback-speech/default is live" at about 23:14Z, and GraphQL showed the new build as `activeBuildId`. Workers still ran the T02 ping-only code for at least 7 more minutes, including a fresh cold worker at 23:21Z. Jobs failed with `TypeError: speech() got an unexpected keyword argument 'radio_effect'`. The environment's `state` stayed `INITIALIZING` throughout. By 23:34Z the new code was serving (ping returned `models_loaded: true`); the state still read `INITIALIZING`. After a deploy, ping until `models_loaded` is `true` before trusting a result. The build's `RUNPOD_BUILD_ID` env var is not proof that a worker runs that build.
+
+**Cold start with both models fits the 60 s cap.** Cold ping (Whisper large-v3 staged by `runpod.Model`, Kokoro downloaded from HF): 29.3 s and 32.6 s from the client. In the 32.6 s run, `delayTime` was 22.3 s and `executionTime` (the model load) was 10.0 s, so `execution_timeout_ms=60_000` has room. Warm jobs: ping 0.4–1.3 s, tts 1.3–1.4 s for 6 s of audio, transcribe 1.9–2.3 s.
+
+**Scale-down takes idle_timeout plus about a minute.** `/health` showed `running: 1` until about 5–6 min after the last job, then `idle: 1, ready: 1, running: 0`.
