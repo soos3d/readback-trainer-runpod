@@ -1,5 +1,6 @@
 // Smoke test against the deployed speech worker: ping → tts → transcribe, run twice for cold and warm
-// timings. CLI only, never bundled. Usage: npx tsx scripts/smoke.ts
+// timings. The first pass is cold only if no worker is running. CLI only, never bundled.
+// Usage: npx tsx scripts/smoke.ts
 import { readFileSync } from "node:fs";
 import runpodSdk from "runpod-sdk"; // RUNPOD: the one allowed import outside lib/runpod.ts (DECISIONS.md)
 import { normalize } from "../lib/normalize";
@@ -60,5 +61,7 @@ async function pass(label: string): Promise<void> {
 }
 
 process.loadEnvFile(".env.local");
-await pass("cold");
+// RUNPOD: /health `running` is the billed worker count; 0 means the first pass pays the cold start
+const { workers } = await speechEndpoint().health();
+await pass(workers.running === 0 ? "cold" : "warm");
 await pass("warm");
