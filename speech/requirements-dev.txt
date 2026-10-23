@@ -1,0 +1,5 @@
+# Local only, never shipped to the worker: the deploy CLI and the CPU tests.
+runpod==2.0.0rc1
+pytest==9.1.1
+numpy==2.5.4
+scipy==1.18.1
