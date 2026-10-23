@@ -1,0 +1,8 @@
+{
+  "access_token": "<redacted>",
+  "expires_in": 1800,
+  "refresh_expires_in": 0,
+  "token_type": "Bearer",
+  "not-before-policy": 1649741894,
+  "scope": "profile email"
+}
