@@ -79,4 +79,4 @@ Redeploy the app: push to `main`, then restart the Pod. Every start clones and b
 
 ## Aviation data
 
-`web/lib/airports.json` holds frequencies, runways and approaches from public FAA data. Never invent a value: a field without a source is `"TODO"`, and the call types that need it return 422. When you add an airport, cite the source to the user and let them check it. Some tests read the shipped file (`tests/core.test.ts`, `tests/scenarios.test.ts`), so update their expectations along with the data.
+`web/lib/airports.json` holds frequencies, runways and approaches from public FAA data. Never invent a value: a field without a source is `"TODO"`, and the call types that need it return 422. When you add an airport, cite the source to the user and let them check it. Some tests read the shipped file (`tests/schemas.test.ts`, `tests/scenarios.test.ts`, `tests/sources.test.ts`, `tests/routes.test.ts`), so update their expectations along with the data.

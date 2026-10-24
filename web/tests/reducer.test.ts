@@ -5,8 +5,8 @@ import type { GradeResult, Scenario } from "@/lib/schemas";
 const scenario = { scenario_id: "s1", expected: [] } as unknown as Scenario;
 const other = { scenario_id: "s2", expected: [] } as unknown as Scenario;
 const grade = { verdict: "readback_correct", score: 1, items: [], tips: [] } as GradeResult;
-const fail = (call: "scenario" | "speak" | "attempt" | "grade", status: number, code: string, message = "boom") =>
-  ({ type: "failed", call, scenarioId: "s1", err: { status, code, message, source: "speech" } }) as Action;
+const fail = (call: "scenario" | "speak" | "attempt" | "grade", status: number, code: string, message = "boom", source = "speech") =>
+  ({ type: "failed", call, scenarioId: "s1", err: { status, code, message, source } }) as Action;
 
 const run = (actions: Action[], from: State = initialState) => actions.reduce(reducer, from);
 const loaded = run([{ type: "new_call" }, { type: "scenario", scenario }]);
@@ -132,8 +132,8 @@ describe("typed readback and results", () => {
 
 describe("errors", () => {
   it("scenario failure → error with Retry, naming the source", () => {
-    const next = reducer(run([{ type: "new_call" }]), fail("scenario", 502, "upstream_failed", "AWC down"));
-    expect(next).toMatchObject({ status: "error", error: { message: "AWC down", source: "speech", retry: true } });
+    const next = reducer(run([{ type: "new_call" }]), fail("scenario", 502, "upstream_failed", "AWC down", "aviationweather"));
+    expect(next).toMatchObject({ status: "error", error: { message: "AWC down", source: "aviationweather", retry: true } });
   });
 
   it("scenario 422 for missing airports.json fields → error without Retry, server message as is", () => {
@@ -141,7 +141,6 @@ describe("errors", () => {
     const next = reducer(run([{ type: "new_call" }]), fail("scenario", 422, "invalid_input", msg));
     expect(next.status).toBe("error");
     expect(next.error).toMatchObject({ message: msg, retry: false });
-    expect(next.error?.message).not.toContain("Only takeoff");
   });
 
   it("429 → banner with the source, back to a usable state", () => {

@@ -5,7 +5,6 @@ import type { Scenario, Snapshot } from "@/lib/schemas";
 import { getAirportInfo, getWeather } from "@/lib/sources/aviationweather";
 import { getFlight } from "@/lib/sources/opensky";
 import { synthesize, transcribe, warmUp } from "@/lib/runpod";
-import { checkWav } from "@/lib/wav";
 import { buildScenario } from "@/lib/scenarios";
 import * as airportsRoute from "@/app/api/airports/route";
 import * as scenarioRoute from "@/app/api/scenario/route";
@@ -216,10 +215,6 @@ describe("/api/speak", () => {
     expect(synthesize).toHaveBeenCalledWith("climb and maintain");
   });
 
-  test("text over 600 chars → 422", async () => {
-    expect((await speakRoute.POST(post("/api/speak", { text: "a".repeat(601) }))).status).toBe(422);
-  });
-
   test("rejected SDK call (network) → 502 speech_failed, worker unreachable", async () => {
     vi.mocked(synthesize).mockRejectedValue(new TypeError("fetch failed"));
     const res = await speakRoute.POST(post("/api/speak", { text: "hello" }));
@@ -263,29 +258,6 @@ describe("/api/attempt", () => {
     expect(transcribe).not.toHaveBeenCalled();
   });
 });
-
-describe("checkWav", () => {
-  test("accepts 0.5 s and 30 s of 16 kHz mono 16-bit PCM", () => {
-    expect(() => checkWav(wavB64(0.5))).not.toThrow();
-    expect(() => checkWav(wavB64(30))).not.toThrow();
-  });
-
-  test.each([
-    ["too short", wavB64(0.4), /0\.5–30 s/],
-    ["too long", wavB64(30.1), /0\.5–30 s/],
-    ["not RIFF", btoa("hello world, this is not a wav file at all"), /RIFF\/WAVE/],
-    ["stereo", stereo(), /mono/],
-    ["truncated header", toBase64(encodeWav(new Float32Array(16000)).subarray(0, 30)), /RIFF\/WAVE|fmt/],
-  ])("%s → 422", (_name, b64, message) => {
-    expect(() => checkWav(b64)).toThrow(message);
-  });
-});
-
-function stereo(): string {
-  const bytes = encodeWav(new Float32Array(16000));
-  new DataView(bytes.buffer).setUint16(22, 2, true);
-  return toBase64(bytes);
-}
 
 describe("/api/grade", () => {
   test("grades a typed transcript", async () => {

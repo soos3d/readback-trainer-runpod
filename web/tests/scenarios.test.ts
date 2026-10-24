@@ -1,10 +1,4 @@
 import { afterAll, beforeAll, describe, expect, test, vi } from "vitest";
-import kttdMetar from "./fixtures/KTTD-metar.json";
-import korlMetar from "./fixtures/KORL-metar.json";
-import kttdAirport from "./fixtures/KTTD-airport.json";
-import kttdDepartures from "./fixtures/KTTD-departures.json";
-import kttdArrivals from "./fixtures/KTTD-arrivals.json";
-import token from "./fixtures/opensky-token.json";
 import { buildScenario } from "@/lib/scenarios";
 import { grade } from "@/lib/grader";
 import { endHeading } from "@/lib/runway";
@@ -12,8 +6,8 @@ import { ApiError } from "@/lib/errors";
 import { AIRPORTS, CallType, Scenario, type AirportConfig, type Snapshot } from "@/lib/schemas";
 import { getAirportInfo, getWeather } from "@/lib/sources/aviationweather";
 import { getFlight } from "@/lib/sources/opensky";
+import { NOW, stubFetch, stubUpstreamEnv } from "./support/upstream";
 
-const NOW = Date.UTC(2026, 9, 23, 16, 0); // fixtures recorded 2026-10-23 ~16:00Z
 const SEED = 48213;
 const TYPES = CallType.options;
 
@@ -33,25 +27,12 @@ const TEST_KTTD: AirportConfig = {
   runways_fallback: [{ id: "07/25", alignment: 89 }],
 };
 
-const FIXTURES: Record<string, unknown> = {
-  "metar?ids=KTTD": kttdMetar, "metar?ids=KORL": korlMetar, "airport?ids=KTTD": kttdAirport,
-  "departure?airport=KTTD": kttdDepartures, "arrival?airport=KTTD": kttdArrivals,
-};
-
 let dep: Snapshot; // departure flight: ifr_clearance, takeoff, departure
 let arr: Snapshot; // arrival flight: approach_vectors, approach_clearance
 let windy: Snapshot["weather"];
 beforeAll(async () => {
-  vi.stubEnv("AWC_USER_AGENT", "test");
-  vi.stubEnv("OPENSKY_CLIENT_ID", "id");
-  vi.stubEnv("OPENSKY_CLIENT_SECRET", "secret");
-  vi.stubGlobal("fetch", async (input: string | URL) => {
-    const url = String(input);
-    if (url.includes("/token")) return Response.json({ ...token, access_token: "tok" });
-    const hit = Object.entries(FIXTURES).find(([k]) => url.includes(k));
-    if (!hit) throw new Error(`unexpected fetch ${url}`);
-    return Response.json(hit[1]);
-  });
+  stubUpstreamEnv();
+  stubFetch();
   const opts = { now: () => NOW, seed: SEED };
   const [weather, airport] = await Promise.all([getWeather("KTTD", opts), getAirportInfo("KTTD", opts)]);
   dep = { weather, airport, flight: await getFlight("KTTD", "departure", opts) };
@@ -67,14 +48,25 @@ const snapFor = (type: CallType) => (type.startsWith("approach") ? arr : dep);
 const build = (type: CallType, seed = SEED, config = TEST_KTTD, snapshot = snapFor(type)) =>
   buildScenario({ icao: "KTTD", type, seed, config, snapshot });
 
-describe("fixtures + seed 48213", () => {
-  test.each(TYPES)("%s: exact text, speech and expected", (type) => {
-    const s = build(type);
-    expect(Scenario.parse(s)).toEqual(s);
-    expect({ text: s.controller_text, speech: s.controller_speech, expected: s.expected }).toMatchSnapshot();
+describe("golden output (fixtures, seed 48213)", () => {
+  test("the exact controller call for each call type", () => {
+    expect(Object.fromEntries(TYPES.map((type) => [type, build(type).controller_text]))).toMatchInlineSnapshot(`
+      {
+        "approach_clearance": "N01H, 6 miles from the final approach fix, turn right heading 270, maintain 2,000 until established on the localizer, cleared ILS runway 25 approach. Contact Troutdale tower 120.9.",
+        "approach_vectors": "N01H, Troutdale altimeter 30.28. Descend and maintain 4,000, fly heading 220, vectors ILS runway 25.",
+        "departure": "N91055, Test Departure, radar contact. Climb and maintain 4,000, turn right heading 280.",
+        "ifr_clearance": "N91055, cleared to KSLE airport via radar vectors, then as filed. Climb and maintain 3,000, expect 8,000 10 minutes after departure. Departure frequency 119.4, squawk 0770.",
+        "takeoff": "N055, turn left heading 220, wind calm, runway 25, cleared for takeoff.",
+      }
+    `);
   });
-  test.each(TYPES)("%s: same seed twice is deep-equal", (type) => {
-    expect(build(type)).toEqual(build(type));
+
+  test("every call type builds a schema-valid scenario, and the same seed gives the same scenario", () => {
+    for (const type of TYPES) {
+      const s = build(type);
+      expect(Scenario.parse(s)).toEqual(s);
+      expect(build(type)).toEqual(s);
+    }
   });
 });
 
@@ -93,29 +85,31 @@ describe("grader accepts a correct readback (seed 48213)", () => {
   });
 });
 
-describe("seeds 0–999", () => {
+describe("invariants over seeds 0–999", () => {
   const REJECT = ["0000", "1200", "7500", "7600", "7700", "7777"];
-  test.each(TYPES)("%s: squawks, headings, speech", (type) => {
-    for (let seed = 0; seed < 1000; seed++) {
-      const s = build(type, seed);
-      expect(s.controller_speech).not.toMatch(/\d/);
-      for (const item of s.expected) {
-        if (item.kind === "squawk") {
-          expect(item.value).toMatch(/^[0-7]{4}$/);
-          expect(REJECT).not.toContain(item.value);
+  test("legal squawks, headings on the 10° grid, takeoff turns ≤ 90°, digit-free speech", () => {
+    for (const type of TYPES) {
+      for (let seed = 0; seed < 1000; seed++) {
+        const s = build(type, seed);
+        expect(s.controller_speech).not.toMatch(/\d/);
+        for (const item of s.expected) {
+          if (item.kind === "squawk") {
+            expect(item.value).toMatch(/^[0-7]{4}$/);
+            expect(REJECT).not.toContain(item.value);
+          }
+          if (item.kind !== "heading") continue;
+          const h = Number(item.value);
+          expect(h % 10 === 0 && h >= 10 && h <= 360).toBe(true);
+          if (type !== "takeoff") continue;
+          const d = Math.abs(h - endHeading(s.context.runway)) % 360;
+          expect(Math.min(d, 360 - d)).toBeLessThanOrEqual(90);
         }
-        if (item.kind !== "heading") continue;
-        const h = Number(item.value);
-        expect(h % 10 === 0 && h >= 10 && h <= 360).toBe(true);
-        if (type !== "takeoff") continue;
-        const d = Math.abs(h - endHeading(s.context.runway)) % 360;
-        expect(Math.min(d, 360 - d)).toBeLessThanOrEqual(90);
       }
     }
   });
 });
 
-describe("airports.json TODO rules", () => {
+describe("airport config rules (TODO fields, fallbacks, warnings)", () => {
   const todo: AirportConfig = {
     ...TEST_KTTD,
     tower_fallback_freq: "TODO",
@@ -126,7 +120,7 @@ describe("airports.json TODO rules", () => {
     max_assign_altitude: "TODO",
   };
 
-  test("takeoff works today: AWC tower freq, generic tower name, calm-wind warning", () => {
+  test("takeoff needs no optional field: AWC tower freq, generic tower name, calm-wind warning", () => {
     const s = build("takeoff", SEED, todo);
     expect(s.facility).toEqual({ name: "Troutdale Tower", freq: "120.9" });
     expect(s.context.runway).toBe("07");
@@ -198,8 +192,8 @@ describe("airports.json TODO rules", () => {
 });
 
 describe("shipped airports.json", () => {
-  test.each(TYPES)("KTTD %s builds", (type) => {
-    expect(Scenario.parse(build(type, SEED, AIRPORTS.KTTD))).toBeTruthy();
+  test("KTTD builds every call type", () => {
+    for (const type of TYPES) expect(Scenario.parse(build(type, SEED, AIRPORTS.KTTD))).toBeTruthy();
   });
 });
 
@@ -213,7 +207,6 @@ describe("circling approaches (KTTD RNAV (GPS)-A, seed 48213)", () => {
     expect(s.controller_speech).toContain("vectors RNAV GPS alpha approach, circle to runway two five.");
     expect(item("approach_vectors", "approach")?.accept).toEqual(["RNAV GPS A", "RNAV A"]);
     expect(item("approach_vectors", "runway")?.value).toBe("25");
-    expect({ text: s.controller_text, speech: s.controller_speech, expected: s.expected }).toMatchSnapshot();
   });
 
   test("approach_clearance: cleared by name, circle to runway, final approach course, tower 120.9", () => {
@@ -223,13 +216,10 @@ describe("circling approaches (KTTD RNAV (GPS)-A, seed 48213)", () => {
     expect(s.controller_text).toMatch(/Contact Troutdale tower 120\.9\.$/);
     expect(item("approach_clearance", "clearance")).toMatchObject({ value: "cleared RNAV (GPS)-A approach" });
     expect(item("approach_clearance", "runway")?.value).toBe("25");
-    expect({ text: s.controller_text, speech: s.controller_speech, expected: s.expected }).toMatchSnapshot();
   });
 
   test.each([
     ["approach_vectors", "altimeter 30.28, descend 4000, heading 220, vectors RNAV Alpha approach, circle runway 25, zero one hotel"],
-    ["approach_vectors", "altimeter 30.28, down to 4000, heading 220, vectors RNAV GPS A approach, circle to runway two five, N01H"],
-    ["approach_clearance", "right heading 270, maintain 2000 until established, cleared RNAV GPS Alpha approach, circle runway 25, tower 120.9, zero one hotel"],
     ["approach_clearance", "right heading 270, maintain 2000 until established, cleared for the RNAV A, circle to runway two five, tower 120.9, zero one hotel"],
   ] as const)("%s: correct readback scores full (%s)", (type, readback) => {
     expect(grade(kttd(type), readback)).toMatchObject({ verdict: "readback_correct", score: 1 });

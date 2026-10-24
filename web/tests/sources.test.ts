@@ -1,16 +1,10 @@
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import kttdMetar from "./fixtures/KTTD-metar.json";
 import korlMetar from "./fixtures/KORL-metar.json";
-import kttdAirport from "./fixtures/KTTD-airport.json";
-import korlAirport from "./fixtures/KORL-airport.json";
 import kttdDepartures from "./fixtures/KTTD-departures.json";
-import kttdArrivals from "./fixtures/KTTD-arrivals.json";
-import korlDepartures from "./fixtures/KORL-departures.json";
-import kvgtDepartures from "./fixtures/KVGT-departures.json";
-import token from "./fixtures/opensky-token.json";
 import airportsJson from "@/lib/airports.json";
+import { AWC_USER_AGENT, json, NOW, stubFetch, stubUpstreamEnv } from "./support/upstream";
 
-const NOW = Date.UTC(2026, 9, 23, 16, 0); // fixtures recorded 2026-10-23 ~16:00Z
 const MIN = 60_000;
 const GA = /^N[0-9][0-9A-Z]{0,4}$/;
 const NEARBY: readonly string[] = airportsJson.KTTD.nearby_destinations;
@@ -20,9 +14,7 @@ let opensky: typeof import("@/lib/sources/opensky");
 beforeEach(async () => {
   vi.resetModules(); // empties the cache and the OpenSky token
   vi.useFakeTimers();
-  vi.stubEnv("AWC_USER_AGENT", "readback-trainer-test");
-  vi.stubEnv("OPENSKY_CLIENT_ID", "id");
-  vi.stubEnv("OPENSKY_CLIENT_SECRET", "secret");
+  stubUpstreamEnv();
   awc = await import("@/lib/sources/aviationweather");
   opensky = await import("@/lib/sources/opensky");
 });
@@ -32,30 +24,6 @@ afterEach(() => {
   vi.unstubAllGlobals();
   vi.unstubAllEnvs();
 });
-
-const json = (body: unknown, status = 200) => Response.json(body, { status });
-const tokenReply = () => json({ ...token, access_token: "tok" });
-
-// Routes stubbed fetch calls by URL; `override` answers first when it returns a Response.
-function stubFetch(override: (url: string) => Response | Promise<Response> | undefined = () => undefined) {
-  const fixtures: Record<string, unknown> = {
-    "metar?ids=KTTD": kttdMetar, "metar?ids=KORL": korlMetar,
-    "airport?ids=KTTD": kttdAirport, "airport?ids=KORL": korlAirport,
-    "departure?airport=KTTD": kttdDepartures, "arrival?airport=KTTD": kttdArrivals,
-    "departure?airport=KORL": korlDepartures, "departure?airport=KVGT": kvgtDepartures,
-  };
-  const fetch = vi.fn(async (input: string | URL, _init?: RequestInit) => {
-    const url = String(input);
-    const custom = await override(url);
-    if (custom) return custom;
-    if (url.includes("/token")) return tokenReply();
-    const hit = Object.entries(fixtures).find(([k]) => url.includes(k));
-    if (!hit) throw new Error(`unexpected fetch ${url}`);
-    return json(hit[1]);
-  });
-  vi.stubGlobal("fetch", fetch);
-  return fetch;
-}
 
 async function settle<T>(promise: Promise<T>): Promise<T> {
   await vi.runAllTimersAsync();
@@ -75,7 +43,7 @@ describe("getWeather", () => {
       warnings: [],
     });
     const init = fetch.mock.calls[0][1];
-    expect(new Headers(init?.headers).get("User-Agent")).toBe("readback-trainer-test");
+    expect(new Headers(init?.headers).get("User-Agent")).toBe(AWC_USER_AGENT);
   });
 
   test("wind without gust; gust and VRB parsed; altim hPa fallback", async () => {

@@ -13,8 +13,9 @@ export default defineConfig({
     include: ["tests/**/*.test.ts"],
     coverage: {
       provider: "v8",
-      include: ["lib/**"],
-      exclude: ["lib/client/**", "lib/runpod.ts"],
+      include: ["lib/**", "app/reducer.ts"],
+      // Browser-only (getUserMedia, MediaRecorder): checked by hand in the browser, not in Node.
+      exclude: ["lib/client/recorder.ts"],
       thresholds: { lines: 80 },
     },
   },
