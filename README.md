@@ -102,10 +102,24 @@ Your account API key is under **Settings** → **API Keys** in the Runpod consol
 
 Push your copy of the repo to GitHub, then in the Runpod console:
 
-1. **Secrets:** create one secret per value in your `.env.local`: `readback_runpod_key` (the Restricted key), `readback_endpoint_id`, `readback_opensky_id`, `readback_opensky_secret` and `readback_awc_user_agent`.
+1. **Secrets:** open **Secrets** → **Create Secret** and create one secret per value in your `.env.local`. For example, name `readback_opensky_secret`, value: your OpenSky client secret. Create all five:
+
+   | Secret name | Value from `.env.local` |
+   |---|---|
+   | `readback_runpod_key` | `RUNPOD_API_KEY` (the Restricted key) |
+   | `readback_endpoint_id` | `SPEECH_ENDPOINT_ID` |
+   | `readback_opensky_id` | `OPENSKY_CLIENT_ID` |
+   | `readback_opensky_secret` | `OPENSKY_CLIENT_SECRET` |
+   | `readback_awc_user_agent` | `AWC_USER_AGENT` |
 2. **Pods → Deploy → CPU:** choose Compute-Optimized with 2 vCPU (about $0.06/hr) and a 10 GB container disk.
 3. **Container image:** `node:22-bookworm-slim`. **Expose HTTP port:** `3000`.
-4. **Environment variables:** map each secret to the name the app reads:
+4. **Environment variables:** add one row per variable. The key is the name the app reads; the value points at a secret with `{{ RUNPOD_SECRET_<secret name> }}`. One example row:
+
+   | Key | Value |
+   |---|---|
+   | `OPENSKY_CLIENT_SECRET` | `{{ RUNPOD_SECRET_readback_opensky_secret }}` |
+
+   All six rows:
    ```
    RUNPOD_API_KEY={{ RUNPOD_SECRET_readback_runpod_key }}
    SPEECH_ENDPOINT_ID={{ RUNPOD_SECRET_readback_endpoint_id }}
@@ -114,6 +128,7 @@ Push your copy of the repo to GitHub, then in the Runpod console:
    AWC_USER_AGENT={{ RUNPOD_SECRET_readback_awc_user_agent }}
    READBACK_DEMO_MODE=1
    ```
+   Runpod replaces each placeholder with the secret's value when the container starts. `READBACK_DEMO_MODE` is a plain value, not a secret.
 5. **Container start command:** replace `<you>` with your GitHub user:
    ```
    bash -c "apt-get update && apt-get install -y --no-install-recommends git ca-certificates && git clone --depth 1 https://github.com/<you>/readback-trainer-runpod.git /app && cd /app/web && npm ci && npm run build && exec npm start -- -p 3000 -H 0.0.0.0"
