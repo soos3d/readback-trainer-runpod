@@ -136,12 +136,12 @@ describe("errors", () => {
     expect(next).toMatchObject({ status: "error", error: { message: "AWC down", source: "speech", retry: true } });
   });
 
-  it("scenario 422 for missing airports.json fields → error without Retry, takeoff note", () => {
+  it("scenario 422 for missing airports.json fields → error without Retry, server message as is", () => {
     const msg = "KTTD needs min_vector_altitude in airports.json for departure";
     const next = reducer(run([{ type: "new_call" }]), fail("scenario", 422, "invalid_input", msg));
     expect(next.status).toBe("error");
-    expect(next.error).toMatchObject({ retry: false });
-    expect(next.error?.message).toContain(MESSAGES.onlyTakeoff);
+    expect(next.error).toMatchObject({ message: msg, retry: false });
+    expect(next.error?.message).not.toContain("Only takeoff");
   });
 
   it("429 → banner with the source, back to a usable state", () => {
