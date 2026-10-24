@@ -9,19 +9,13 @@ const parallel = [
 ];
 
 describe("runwayInUse", () => {
-  test("080 at 9 with 07/25 → 07", () => {
+  test("picks the end most aligned with the wind", () => {
     expect(runwayInUse({ windDirTrue: 80, windKt: 9, runways: single, calmRunway: "25" })).toBe("07");
-  });
-
-  test("260 at 12 → 25", () => {
     expect(runwayInUse({ windDirTrue: 260, windKt: 12, runways: single, calmRunway: "07" })).toBe("25");
   });
 
-  test("3 kt → calm runway", () => {
+  test("3 kt or less, or variable wind, uses the calm-wind runway", () => {
     expect(runwayInUse({ windDirTrue: 80, windKt: 3, runways: single, calmRunway: "25" })).toBe("25");
-  });
-
-  test("VRB → calm runway", () => {
     expect(runwayInUse({ windDirTrue: "VRB", windKt: 15, runways: single, calmRunway: "25" })).toBe("25");
   });
 
@@ -52,14 +46,11 @@ describe("runwayInUse", () => {
     expect(runwayInUse({ ...args, allowedEnds: ["31L", "13R"] })).toBe("13R");
   });
 
-  test("throws when no allowed end exists on the runways", () => {
+  test("throws on an empty runway list or an allowed end that does not exist", () => {
+    expect(() => runwayInUse({ windDirTrue: 80, windKt: 9, runways: [], calmRunway: "07" })).toThrow();
     expect(() =>
       runwayInUse({ windDirTrue: 80, windKt: 9, runways: single, calmRunway: "07", allowedEnds: ["09"] }),
     ).toThrow(/09/);
-  });
-
-  test("throws on empty runway list", () => {
-    expect(() => runwayInUse({ windDirTrue: 80, windKt: 9, runways: [], calmRunway: "07" })).toThrow();
   });
 });
 
