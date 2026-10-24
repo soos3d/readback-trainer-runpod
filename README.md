@@ -222,7 +222,7 @@ With both models loaded (smoke run, RTX 4090): cold ping 29.4 s, tts 3.4 s, tran
 
 ## Current limits
 
-- `approaches` in `web/lib/airports.json` is still `TODO` at all three airports, so `approach_clearance` returns 422 and names the missing field. A pilot fills it from the approach plates.
+- `approaches` in `web/lib/airports.json` is still `TODO` at all three airports, and KORL's `tower_fallback_freq` too. Until a pilot fills them from the approach plates and the Chart Supplement, `approach_vectors` and `approach_clearance` return 422 and name the missing field.
 - The aviation wording (phonetic spellings, gust phrasing, altitudes above 10,000, facility names) still needs a pilot's review.
 - The grader does not yet handle split digit runs ("squawk 45 21") or teen and tens words ("runway thirteen left").
 
