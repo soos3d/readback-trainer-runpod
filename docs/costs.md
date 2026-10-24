@@ -48,7 +48,8 @@ FlashBoot snapshots are tied to a host and image, so a scale-up that lands on a 
 |---|---|---|
 | T02 spike (ping worker) | ≈ 13 worker-minutes | ≈ $0.25 (estimate from the list rate) |
 | T12 deploy and smoke | ≈ 24 worker-minutes | ≈ $0.45 (estimate) |
-| **Total so far** | | **≈ $0.70 of the $10 cap** |
+| T17 Pod deploy (`cpu3c`, $0.06/hr) | Pod running since 2026-10-23 | ≈ $0.02 at hand-off; bills until stopped |
+| **Total so far** | | **≈ $0.72 of the $10 cap, plus Pod hours** |
 
 ## How to stop billing
 
