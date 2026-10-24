@@ -197,12 +197,71 @@ describe("airports.json TODO rules", () => {
   });
 });
 
-describe("shipped airports.json (approaches still TODO)", () => {
-  test.each(["ifr_clearance", "takeoff", "departure"] as const)("KTTD %s builds", (type) => {
+describe("shipped airports.json", () => {
+  test.each(TYPES)("KTTD %s builds", (type) => {
     expect(Scenario.parse(build(type, SEED, AIRPORTS.KTTD))).toBeTruthy();
   });
+});
 
-  test.each(["approach_vectors", "approach_clearance"] as const)("KTTD %s → 422 naming approaches", (type) => {
-    expect(() => build(type, SEED, AIRPORTS.KTTD)).toThrow(`KTTD needs approaches in airports.json for ${type}`);
+describe("circling approaches (KTTD RNAV (GPS)-A, seed 48213)", () => {
+  const kttd = (type: CallType, seed = SEED) => build(type, seed, AIRPORTS.KTTD);
+  const item = (type: CallType, key: string) => kttd(type).expected.find((i) => i.key === key);
+
+  test("approach_vectors: name with letter, circle to the runway in use, no runway after the name", () => {
+    const s = kttd("approach_vectors");
+    expect(s.controller_text).toContain("vectors RNAV (GPS)-A approach, circle to runway 25.");
+    expect(s.controller_speech).toContain("vectors RNAV GPS alpha approach, circle to runway two five.");
+    expect(item("approach_vectors", "approach")?.accept).toEqual(["RNAV GPS A", "RNAV A"]);
+    expect(item("approach_vectors", "runway")?.value).toBe("25");
+    expect({ text: s.controller_text, speech: s.controller_speech, expected: s.expected }).toMatchSnapshot();
+  });
+
+  test("approach_clearance: cleared by name, circle to runway, final approach course, tower 120.9", () => {
+    const s = kttd("approach_clearance");
+    expect(s.controller_text).toContain("until established on the final approach course, cleared RNAV (GPS)-A approach, circle to runway 25.");
+    expect(s.controller_speech).toContain("cleared RNAV GPS alpha approach, circle to runway two five.");
+    expect(s.controller_text).toMatch(/Contact Troutdale tower 120\.9\.$/);
+    expect(item("approach_clearance", "clearance")).toMatchObject({ value: "cleared RNAV (GPS)-A approach" });
+    expect(item("approach_clearance", "runway")?.value).toBe("25");
+    expect({ text: s.controller_text, speech: s.controller_speech, expected: s.expected }).toMatchSnapshot();
+  });
+
+  test.each([
+    ["approach_vectors", "altimeter 30.28, descend 4000, heading 220, vectors RNAV Alpha approach, circle runway 25, zero one hotel"],
+    ["approach_vectors", "altimeter 30.28, down to 4000, heading 220, vectors RNAV GPS A approach, circle to runway two five, N01H"],
+    ["approach_clearance", "right heading 270, maintain 2000 until established, cleared RNAV GPS Alpha approach, circle runway 25, tower 120.9, zero one hotel"],
+    ["approach_clearance", "right heading 270, maintain 2000 until established, cleared for the RNAV A, circle to runway two five, tower 120.9, zero one hotel"],
+  ] as const)("%s: correct readback scores full (%s)", (type, readback) => {
+    expect(grade(kttd(type), readback)).toMatchObject({ verdict: "readback_correct", score: 1 });
+  });
+
+  test("a readback without the approach name misses that item", () => {
+    const r = grade(kttd("approach_clearance"), "right heading 270, maintain 2000 until established, cleared approach, circle runway 25, tower 120.9, zero one hotel");
+    expect(r.items.find((i) => i.key === "clearance")?.status).toBe("missing");
+    expect(r.verdict).toBe("readback_incomplete");
+    const rnavOnly = grade(kttd("approach_clearance"), "cleared RNAV approach");
+    expect(rnavOnly.items.find((i) => i.key === "clearance")?.status).toBe("missing");
+  });
+
+  test("seeds 0–199: always circling, runway from wind or calm-wind runway", () => {
+    for (let seed = 0; seed < 200; seed++) {
+      for (const type of ["approach_vectors", "approach_clearance"] as const) {
+        const s = kttd(type, seed);
+        expect(s.controller_text).toContain("RNAV (GPS)-A approach, circle to runway 25");
+        expect(s.controller_speech).not.toMatch(/\d/);
+      }
+    }
+  });
+
+  test("a straight-in approach for the runway in use wins over circling", () => {
+    const mixed = { ...TEST_KTTD, approaches: { "25": ["ILS"], circling: ["VOR-A"] } };
+    expect(build("approach_clearance", SEED, mixed).controller_text).toContain("cleared ILS runway 25 approach.");
+  });
+
+  test("circling is used when no straight-in approach serves the runway in use", () => {
+    const mixed = { ...TEST_KTTD, approaches: { "07": ["ILS"], circling: ["VOR-A"] } };
+    const s = build("approach_vectors", SEED, mixed);
+    expect(s.controller_text).toContain("vectors VOR-A approach, circle to runway 25.");
+    expect(s.controller_speech).toContain("vectors VOR alpha approach, circle to runway two five.");
   });
 });
