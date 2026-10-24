@@ -65,3 +65,11 @@ Where Runpod's tools or docs behaved differently from what we expected, one sect
 **Cold start with both models fits the 60 s cap.** Cold ping (Whisper large-v3 staged by `runpod.Model`, Kokoro downloaded from HF): 29.3 s and 32.6 s from the client. In the 32.6 s run, `delayTime` was 22.3 s and `executionTime` (the model load) was 10.0 s, so `execution_timeout_ms=60_000` has room. Warm jobs: ping 0.4–1.3 s, tts 1.3–1.4 s for 6 s of audio, transcribe 1.9–2.3 s.
 
 **Scale-down takes idle_timeout plus about a minute.** `/health` showed `running: 1` until about 5–6 min after the last job, then `idle: 1, ready: 1, running: 0`.
+
+## 2026-10-24 · T17 CPU Pod deploy
+
+**Secrets have no REST endpoint.** `https://rest.runpod.io/v1` covers Pods, endpoints, templates and volumes but not secrets, and the secrets docs page only describes the console. The GraphQL mutation `secretCreate(input: {name: String!, value: String!})` works with a full-access key; GraphQL introspection is disabled, so we found the input shape from the validation error of a deliberately bad call.
+
+**Multi-line secrets.** An SSH private key has newlines. We stored it base64-encoded and decoded it in the start command, so we never had to find out how `{{ RUNPOD_SECRET_… }}` substitution treats newlines.
+
+**Fast first boot.** The `cpu3c` Pod (2 vCPU, 4 GB, EU-SE-1) answered `/api/airports` with 200 about 37 s after `POST /v1/pods` returned, including apt-get, clone, `npm ci` and `next build`. 4 GB was enough for `next build`; no need for `cpu3g`.

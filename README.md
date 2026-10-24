@@ -132,19 +132,31 @@ To check the worker, run `npx tsx scripts/smoke.ts` from `web/`. It runs ping, t
 
 ### Web app (CPU Pod)
 
-(Not yet verified. T17 runs these steps on a real Pod.)
+Verified in T17 on a `cpu3c` Pod (2 vCPU, 4 GB, $0.06/hr). The repo is private, so the Pod clones it with a read-only GitHub deploy key.
 
-1. Create Runpod secrets for `RUNPOD_API_KEY` (the Restricted key), `SPEECH_ENDPOINT_ID`, `OPENSKY_CLIENT_ID`, `OPENSKY_CLIENT_SECRET` and `AWC_USER_AGENT`.
-2. Create a CPU Pod from `node:22-bookworm-slim` and expose HTTP port 3000.
-3. Map each secret to its plain name in the Pod's env config, for example `RUNPOD_API_KEY={{ RUNPOD_SECRET_speech_key }}`. The code reads only the plain names.
-4. Set the start command. The slim image has no git, so install it first:
-   ```
-   bash -c "apt-get update && apt-get install -y --no-install-recommends git ca-certificates && git clone <repo-url> /app && cd /app/web && npm ci && npm run build && npm start -- -p 3000 -H 0.0.0.0"
-   ```
-5. Open `https://<POD_ID>-3000.proxy.runpod.net`.
-6. Stop the Pod after the demo. A Pod bills every hour until you stop it.
+1. Create a deploy key: `ssh-keygen -t ed25519 -N '' -f deploy_key`, then `gh repo deploy-key add deploy_key.pub --repo <owner>/<repo> --title runpod-pod`. Skip this for a public repo and clone over HTTPS.
+2. Create Runpod secrets (console → Secrets, or the GraphQL mutation `secretCreate(input: {name, value})`; the REST API has no secrets endpoint). T17 used these names:
 
-Teardown: `rp flash undeploy --app readback-speech --env default`, terminate the Pod, revoke the Restricted key.
+   | Secret | Value |
+   |---|---|
+   | `readback_runpod_key` | the Restricted key, not your account key |
+   | `readback_endpoint_id` | `SPEECH_ENDPOINT_ID` |
+   | `readback_opensky_id`, `readback_opensky_secret` | OpenSky client credentials |
+   | `readback_awc_user_agent` | `AWC_USER_AGENT` |
+   | `readback_deploy_key_b64` | `base64 < deploy_key` (one line, so the newlines survive) |
+
+   Then delete the local `deploy_key`.
+3. Create a CPU Pod (`POST https://rest.runpod.io/v1/pods`, or the console): `computeType: "CPU"`, `cpuFlavorIds: ["cpu3c"]`, `vcpuCount: 2`, image `node:22-bookworm-slim`, `containerDiskInGb: 10`, `volumeInGb: 0`, `ports: ["3000/http"]`.
+4. Map each secret to its plain name in the Pod env, for example `RUNPOD_API_KEY={{ RUNPOD_SECRET_readback_runpod_key }}`, and `DEPLOY_KEY_B64={{ RUNPOD_SECRET_readback_deploy_key_b64 }}`. Plain values: `READBACK_DEMO_MODE=1` (enables `?demo=1`), `NEXT_TELEMETRY_DISABLED=1`.
+5. Set the start command (`dockerStartCmd: ["bash", "-c", "<this>"]`). The slim image has no git or ssh:
+   ```
+   set -e; apt-get update && apt-get install -y --no-install-recommends git openssh-client ca-certificates && mkdir -p ~/.ssh && printf %s "$DEPLOY_KEY_B64" | base64 -d > ~/.ssh/id_ed25519 && chmod 600 ~/.ssh/id_ed25519 && unset DEPLOY_KEY_B64 && rm -rf /app && GIT_SSH_COMMAND='ssh -o StrictHostKeyChecking=accept-new' git clone --depth 1 git@github.com:<owner>/<repo>.git /app && cd /app/web && npm ci && npm run build && exec npm start -- -p 3000 -H 0.0.0.0
+   ```
+   Every start clones `main` again and rebuilds, so a restart deploys the latest commit.
+6. Open `https://<POD_ID>-3000.proxy.runpod.net` after the build finishes.
+7. Stop the Pod after the demo. A running Pod bills every hour (`cpu3c`: $0.06/hr, about $44 a month if left on).
+
+Teardown: `rp flash undeploy --app readback-speech --env default`, terminate the Pod, revoke the Restricted key, delete the deploy key (`gh repo deploy-key delete <id>`).
 
 ## Architecture
 
