@@ -222,7 +222,7 @@ With both models loaded (smoke run, RTX 4090): cold ping 29.4 s, tts 3.4 s, tran
 
 ## Current limits
 
-- KTTD's only instrument approach, RNAV (GPS)-A, is circling-only, and the approach templates need a runway. So `approaches` stays `TODO` there, and `approach_vectors` and `approach_clearance` return 422 at KTTD. KORL and KVGT support every call type.
+- KTTD's only instrument approach, RNAV (GPS)-A, is circling-only. `airports.json` lists it under the `circling` key, and the approach calls clear it by name with "circle to runway" and the runway in use. The intercept heading in `approach_clearance` is the runway heading ±20–30°, not the published final approach course, so it is approximate at KTTD.
 - `web/lib/airports.json` was filled from the FAA data published on AirNav and AviationWeather.gov in October 2026. A pilot should check it against the current Chart Supplement and approach plates.
 - The aviation wording (phonetic spellings, gust phrasing, altitudes above 10,000, facility names) still needs a pilot's review.
 - The grader does not yet handle split digit runs ("squawk 45 21") or teen and tens words ("runway thirteen left").

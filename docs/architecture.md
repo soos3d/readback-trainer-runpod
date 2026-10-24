@@ -30,7 +30,7 @@ A queue endpoint holds a job while a worker cold-starts. A load-balancing endpoi
 4. `buildScenario()` picks the runway from the wind and fills the call type's template. It returns the controller text, the words for TTS and the answer key (`expected`). The same seed and data always give the same scenario.
 5. The UI shows the call card at once, with the text hidden by default, and the warnings as banners.
 
-A call type whose `airports.json` fields are `TODO` returns 422 and names the missing fields. Today only KTTD's `approaches` is `TODO` (its one approach is circling-only), so the two approach call types return 422 at KTTD.
+A call type whose `airports.json` fields are `TODO` returns 422 and names the missing fields. No shipped field is `TODO` today. Circling-only approaches, such as KTTD's RNAV (GPS)-A, sit under the `circling` key of `approaches`; a straight-in approach to the runway in use wins over them.
 
 ## Flow B: hear it
 
