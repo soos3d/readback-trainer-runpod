@@ -56,7 +56,6 @@ export const MESSAGES = {
   voiceDown: "Voice unavailable — type your readback",
   stillWarming: "The GPU is still warming up — type your readback for now",
   slowDown: "Slow down — too many requests this minute",
-  onlyTakeoff: "Only takeoff works until airports.json is filled.",
 };
 
 export const initialState: State = {
@@ -91,7 +90,7 @@ function failed(s: State, a: Extract<Action, { type: "failed" }>): State {
     return { ...s, status: "audio_ready", inline: MESSAGES.badLength };
   }
   if (call === "scenario" && err.status === 422 && / needs .* in airports\.json/.test(err.message)) {
-    return { ...s, status: "error", error: { message: `${err.message}. ${MESSAGES.onlyTakeoff}`, source: err.source, retry: false } };
+    return { ...s, status: "error", error: { message: err.message, source: err.source, retry: false } };
   }
   return { ...s, status: "error", error: { message: err.message, source: err.source, retry: true } };
 }
