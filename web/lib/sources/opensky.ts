@@ -97,7 +97,7 @@ export async function getFlight(icao: string, direction: Direction, opts: Flight
     return {
       data: { ...f, date },
       provenance: { source: r.fresh ? "opensky" : "cached", date },
-      warnings: [],
+      warnings: r.fresh ? [] : [`Live flight data unavailable — using a cached flight from ${date}`],
     };
   } catch (err) {
     if (!isUpstreamError(err)) throw err;

@@ -192,6 +192,15 @@ describe("getFlight", () => {
     expect(again).toEqual(f);
   });
 
+  test("opensky_down + stale cache gives cached + a warning with the flight date", async () => {
+    stubFetch();
+    const live = await opensky.getFlight("KTTD", "departure", { now: () => NOW, seed: 7 });
+    const f = await opensky.getFlight("KTTD", "departure", { now: () => NOW + MIN, seed: 7, simulateDown: true });
+    expect(f.data).toEqual(live.data);
+    expect(f.provenance).toEqual({ source: "cached", date: "2026-10-22" });
+    expect(f.warnings).toEqual(["Live flight data unavailable — using a cached flight from 2026-10-22"]);
+  });
+
   test("404 (no flights) gives the no-GA warning", async () => {
     stubFetch((url) => (url.includes("/flights/") ? new Response(null, { status: 404 }) : undefined));
     const f = await opensky.getFlight("KTTD", "arrival", { now: () => NOW });
