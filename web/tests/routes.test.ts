@@ -1,11 +1,12 @@
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
-import { SpeechFailed, SpeechWarming } from "@/lib/errors";
+import { ApiError, SpeechFailed, SpeechWarming } from "@/lib/errors";
 import { encodeWav, toBase64 } from "@/lib/client/wavEncode";
 import type { Scenario, Snapshot } from "@/lib/schemas";
 import { getAirportInfo, getWeather } from "@/lib/sources/aviationweather";
 import { getFlight } from "@/lib/sources/opensky";
 import { synthesize, transcribe, warmUp } from "@/lib/runpod";
 import { checkWav } from "@/lib/wav";
+import { buildScenario } from "@/lib/scenarios";
 import * as airportsRoute from "@/app/api/airports/route";
 import * as scenarioRoute from "@/app/api/scenario/route";
 import * as speakRoute from "@/app/api/speak/route";
@@ -16,6 +17,11 @@ import * as warmupRoute from "@/app/api/warmup/route";
 vi.mock("@/lib/runpod", () => ({ synthesize: vi.fn(), transcribe: vi.fn(), warmUp: vi.fn() }));
 vi.mock("@/lib/sources/aviationweather", () => ({ getWeather: vi.fn(), getAirportInfo: vi.fn() }));
 vi.mock("@/lib/sources/opensky", () => ({ getFlight: vi.fn() }));
+// The real builder by default; a test can make it throw without depending on airports.json contents.
+vi.mock("@/lib/scenarios", async (importOriginal) => {
+  const real = await importOriginal<typeof import("@/lib/scenarios")>();
+  return { buildScenario: vi.fn(real.buildScenario) };
+});
 
 const WEATHER: Snapshot["weather"] = {
   data: { wind_dir_true: 80, wind_kt: 9, gust_kt: null, altimeter_inhg: 30.02, metar_raw: "KTTD 231553Z 08009KT A3002", obs_time: null },
@@ -124,9 +130,13 @@ describe("/api/scenario", () => {
   });
 
   test("TODO airport fields → the builder's 422 passes through", async () => {
+    const message = "KTTD needs min_vector_altitude in airports.json for ifr_clearance";
+    vi.mocked(buildScenario).mockImplementationOnce(() => {
+      throw new ApiError(422, "invalid_input", message, "web");
+    });
     const res = await scenarioRoute.POST(post("/api/scenario", { airport: "KTTD", type: "ifr_clearance", seed: 1 }));
     expect(res.status).toBe(422);
-    expect((await res.json()).error.message).toMatch(/KTTD needs .* for ifr_clearance/);
+    expect((await res.json()).error).toMatchObject({ code: "invalid_input", message });
   });
 
   test("simulate ignored when demo mode is off", async () => {
