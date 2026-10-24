@@ -1,5 +1,5 @@
 // One template per call type (SPEC §9.1). Pure; all randomness comes from ctx.rand.
-import { abbreviatedCallsign, altimeter, altitude, callsign, frequency, heading, runway, spell, squawk, type Phrase } from "./phraseology";
+import { abbreviatedCallsign, altimeter, altitude, callsign, frequency, heading, PHONETIC, runway, spell, squawk, type Phrase } from "./phraseology";
 import { endHeading } from "./runway";
 import { isTodo, type AirportConfig, type CallType, type ExpectedItem, type Kind, type Snapshot } from "./schemas";
 
@@ -71,10 +71,22 @@ const item = (key: string, kind: Kind, label: string, value: string | number, ac
 
 const facilityName = (ctx: Ctx, name: string, suffix: string) => (isTodo(name) ? `${ctx.config.radio_name} ${suffix}` : name);
 
-/** "RNAV (GPS)" → spoken "RNAV GPS"; grader also accepts the first word alone ("cleared RNAV"). */
+/** "RNAV (GPS)" → spoken "RNAV GPS"; grader also accepts the first word alone ("cleared RNAV").
+ * A circling letter is spoken phonetically and the grader needs it: "RNAV (GPS)-A" → "RNAV GPS alpha", accepts "RNAV A". */
 function approachName(name: string): { phrase: Phrase; forms: string[] } {
-  const spoken = name.replace(/[()]/g, "");
-  return { phrase: { display: name, spoken }, forms: [...new Set([spoken, spoken.split(" ")[0]])] };
+  const m = /^(.*)-([A-Z])$/.exec(name);
+  const base = (m ? m[1] : name).replace(/[()]/g, "");
+  const words = [base, base.split(" ")[0]];
+  if (!m) return { phrase: { display: name, spoken: base }, forms: [...new Set(words)] };
+  return { phrase: { display: name, spoken: `${base} ${PHONETIC[m[2]]}` }, forms: [...new Set(words.map((w) => `${w} ${m[2]}`))] };
+}
+
+/** A straight-in approach to the runway in use, else a circling one that circles to it (JO 7110.65 4-8-1). */
+function chooseApproach(ctx: Ctx, approaches: Filled<"approaches">["approaches"]) {
+  const { circling, ...straight } = approaches;
+  const rwy = ctx.runway(circling ? undefined : Object.keys(straight));
+  const circle = circling !== undefined && !Object.hasOwn(straight, rwy);
+  return { rwy, name: pick(ctx.rand, circle ? circling : straight[rwy]), circle };
 }
 
 const abbr = (ctx: Ctx) => abbreviatedCallsign(ctx.snapshot.flight.data.tail);
@@ -152,14 +164,15 @@ const approachFacility = (ctx: Ctx) => ({
 
 const approachVectors: Template = (ctx) => {
   const { approaches } = ctx.need("approaches");
-  const rwy = ctx.runway(Object.keys(approaches));
-  const appr = approachName(pick(ctx.rand, approaches[rwy]));
+  const { rwy, name, circle } = chooseApproach(ctx, approaches);
+  const appr = approachName(name);
+  const target = circle ? say`approach, circle to ${runway(rwy)}` : runway(rwy);
   const alt = pick(ctx.rand, [2000, 3000, 4000]);
   const hdg = pick(ctx.rand, HEADINGS);
   const inHg = ctx.snapshot.weather.data.altimeter_inhg;
   return {
     facility: approachFacility(ctx),
-    text: say`${abbr(ctx)}, ${ctx.config.radio_name} ${altimeter(inHg)}. Descend and maintain ${altitude(alt)}, fly ${heading(hdg)}, vectors ${appr.phrase} ${runway(rwy)}.`,
+    text: say`${abbr(ctx)}, ${ctx.config.radio_name} ${altimeter(inHg)}. Descend and maintain ${altitude(alt)}, fly ${heading(hdg)}, vectors ${appr.phrase} ${target}.`,
     runway: rwy,
     expected: [
       item("altimeter", "altimeter", "Altimeter", inHg.toFixed(2)),
@@ -173,24 +186,24 @@ const approachVectors: Template = (ctx) => {
 
 const approachClearance: Template = (ctx) => {
   const { approaches, min_vector_altitude: alt } = ctx.need("approaches", "min_vector_altitude");
-  const rwy = ctx.runway(Object.keys(approaches));
-  const name = pick(ctx.rand, approaches[rwy]);
+  const { rwy, name, circle } = chooseApproach(ctx, approaches);
   const appr = approachName(name);
   const miles = String(int(ctx.rand, 3, 6));
   const turn = pick(ctx.rand, [-30, -20, 20, 30]);
   const hdg = norm(endHeading(rwy) + turn);
   const course = /^(ILS|LOC)/.test(name) ? "localizer" : "final approach course";
   const twr = ctx.towerFreq();
+  const approach = circle ? say`${appr.phrase} approach, circle to ${runway(rwy)}` : say`${appr.phrase} ${runway(rwy)} approach`;
   const cleared = appr.forms.flatMap((f) => [`cleared ${f}`, `cleared for the ${f}`, `cleared for ${f}`]);
   return {
     facility: approachFacility(ctx),
-    text: say`${abbr(ctx)}, ${{ display: miles, spoken: spell(miles) }} miles from the final approach fix, turn ${turn < 0 ? "left" : "right"} ${heading(hdg)}, maintain ${altitude(alt)} until established on the ${course}, cleared ${appr.phrase} ${runway(rwy)} approach. Contact ${ctx.config.radio_name} tower ${twr ? frequency(twr) : NOT_SET}.`,
+    text: say`${abbr(ctx)}, ${{ display: miles, spoken: spell(miles) }} miles from the final approach fix, turn ${turn < 0 ? "left" : "right"} ${heading(hdg)}, maintain ${altitude(alt)} until established on the ${course}, cleared ${approach}. Contact ${ctx.config.radio_name} tower ${twr ? frequency(twr) : NOT_SET}.`,
     runway: rwy,
     expected: [
       item("heading", "heading", "Heading", hdg),
       item("altitude", "altitude", "Altitude", alt),
       item("established", "phrase", "Until established", "until established"),
-      item("clearance", "phrase", "Approach clearance", `cleared ${name} ${runway(rwy).display} approach`, cleared),
+      item("clearance", "phrase", "Approach clearance", `cleared ${circle ? name : `${name} ${runway(rwy).display}`} approach`, cleared),
       item("runway", "runway", "Runway", rwy),
       ...(twr ? [item("tower_freq", "frequency", "Tower frequency", twr)] : []),
     ],

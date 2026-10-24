@@ -33,7 +33,8 @@ export const AirportConfig = z.strictObject({
   departure: Facility,
   approach: Facility,
   calm_wind_runway: orTodo(RunwayEnd),
-  approaches: orTodo(z.record(RunwayEnd, z.array(z.string().min(1)).min(1))),
+  // Straight-in approaches by runway end; circling-only approaches (e.g. "RNAV (GPS)-A") under "circling".
+  approaches: orTodo(z.record(z.union([RunwayEnd, z.literal("circling")]), z.array(z.string().min(1)).min(1))),
   nearby_destinations: orTodo(z.array(IcaoCode).min(1)),
   min_vector_altitude: orTodo(Altitude),
   max_assign_altitude: orTodo(Altitude),

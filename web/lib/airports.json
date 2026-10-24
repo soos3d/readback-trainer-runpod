@@ -6,7 +6,7 @@
     "departure": { "name": "Portland departure", "freq": "124.35" },
     "approach": { "name": "Portland approach", "freq": "118.1" },
     "calm_wind_runway": "25",
-    "approaches": "TODO",
+    "approaches": { "circling": ["RNAV (GPS)-A"] },
     "nearby_destinations": ["KPDX", "KUAO", "KHIO"],
     "min_vector_altitude": 2000,
     "max_assign_altitude": 6000,

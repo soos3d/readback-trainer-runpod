@@ -64,13 +64,27 @@ describe("airports.json", () => {
     expect(AIRPORTS.KTTD.runways_fallback).toEqual([{ id: "07/25", alignment: 89 }]);
   });
 
-  test("shipped file: only KTTD approaches is TODO (its one approach, RNAV (GPS)-A, is circling-only)", () => {
+  test("shipped file: no TODO fields remain", () => {
     const todos = Object.entries(AIRPORTS).flatMap(([icao, a]) =>
       Object.entries(a).filter(([, v]) => isTodo(v) || (typeof v === "object" && Object.values(v).some(isTodo)))
         .map(([field]) => `${icao}.${field}`),
     );
-    expect(todos).toEqual(["KTTD.approaches"]);
+    expect(todos).toEqual([]);
     expect(isTodo("118.7")).toBe(false);
+  });
+
+  test("approaches: KTTD lists its circling-only approach under the reserved key", () => {
+    expect(AIRPORTS.KTTD.approaches).toEqual({ circling: ["RNAV (GPS)-A"] });
+  });
+
+  test("approaches: accepts runway ends and \"circling\", rejects other keys", () => {
+    const kttd = airportsJson.KTTD;
+    const parse = (approaches: unknown) => AirportsFile.safeParse({ KTTD: { ...kttd, approaches } }).success;
+    expect(parse({ "25": ["ILS"], circling: ["VOR-A"] })).toBe(true);
+    expect(parse({ circle: ["VOR-A"] })).toBe(false);
+    expect(parse({ Circling: ["VOR-A"] })).toBe(false);
+    expect(parse({ "37": ["ILS"] })).toBe(false);
+    expect(parse({ circling: [] })).toBe(false);
   });
 
   test("rejects a guessed-looking bad frequency and a stray key", () => {
