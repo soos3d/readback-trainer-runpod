@@ -30,7 +30,7 @@ A queue endpoint holds a job while a worker cold-starts. A load-balancing endpoi
 4. `buildScenario()` picks the runway from the wind and fills the call type's template. It returns the controller text, the words for TTS and the answer key (`expected`). The same seed and data always give the same scenario.
 5. The UI shows the call card at once, with the text hidden by default, and the warnings as banners.
 
-A call type whose `airports.json` fields are `TODO` returns 422 and names the missing fields. Today only `takeoff` builds.
+A call type whose `airports.json` fields are `TODO` returns 422 and names the missing fields. Today only `approaches` is `TODO`, so only `approach_clearance` returns 422.
 
 ## Flow B: hear it
 

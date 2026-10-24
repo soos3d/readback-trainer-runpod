@@ -218,17 +218,16 @@ Measured so far, with a ping-only worker on an RTX 4090 (T02):
 | Cold start after scale-to-zero (FlashBoot) | 15.2 s |
 | Warm | 0.4 s |
 
-Timings with both models loaded, for ping, tts and transcribe, are pending the full smoke run.
+With both models loaded (smoke run, RTX 4090): cold ping 29.4 s, tts 3.4 s, transcribe 2.4 s; warm 1.2 s, 1.3 s, 1.9 s.
 
 ## Current limits
 
-- `web/lib/airports.json` is mostly `TODO`. Until a pilot fills frequencies, approaches, altitudes and nearby airports, only the `takeoff` call type builds. The others return 422 and name the missing fields.
-- The aviation wording (phonetic spellings, gust phrasing, altitudes above 10,000, facility names) has open questions for the pilot. They are listed in `handoff/T04.md` and `handoff/T09.md`.
-- The grader does not yet handle split digit runs ("squawk 45 21") or teen and tens words ("runway thirteen left"). See card P1 in `PLAN.md`.
-- The full GPU smoke run and the Pod deploy are not done yet.
+- `approaches` in `web/lib/airports.json` is still `TODO` at all three airports, so `approach_clearance` returns 422 and names the missing field. A pilot fills it from the approach plates.
+- The aviation wording (phonetic spellings, gust phrasing, altitudes above 10,000, facility names) still needs a pilot's review.
+- The grader does not yet handle split digit runs ("squawk 45 21") or teen and tens words ("runway thirteen left").
 
 ## AI use
 
-Claude Code agents wrote this code, one task per session, from a build kit: `SPEC.md` (what to build), `PLAN.md` (task cards, each with an acceptance command), `AGENTS.md` (rules for every session) and `DECISIONS.md` (where the build differs from the spec, and why). Each agent left a handoff in `handoff/` for the next one. Runpod surprises went to `docs/friction-log.md`.
+Claude Code agents wrote this code, one task per session, from a build kit: a numbered spec, task cards with an acceptance command each, rules for every session, and a log of where the build differs from the spec. Each agent left a handoff for the next one. The kit stays out of this repo. Runpod surprises went to `docs/friction-log.md`.
 
 A pilot reviews the aviation wording and fills `airports.json` from the FAA Chart Supplement and approach plates. The agents leave `TODO` rather than guess a frequency, an approach or an altitude.
