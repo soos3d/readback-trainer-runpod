@@ -116,7 +116,15 @@ describe("seeds 0–999", () => {
 });
 
 describe("airports.json TODO rules", () => {
-  const todo = { ...AIRPORTS.KTTD };
+  const todo: AirportConfig = {
+    ...TEST_KTTD,
+    tower_fallback_freq: "TODO",
+    calm_wind_runway: "TODO",
+    approaches: "TODO",
+    nearby_destinations: "TODO",
+    min_vector_altitude: "TODO",
+    max_assign_altitude: "TODO",
+  };
 
   test("takeoff works today: AWC tower freq, generic tower name, calm-wind warning", () => {
     const s = build("takeoff", SEED, todo);
@@ -186,5 +194,15 @@ describe("airports.json TODO rules", () => {
     const s = build("takeoff", SEED, TEST_KTTD, { ...dep, flight });
     expect(s.warnings[0]).toBe("Flight data unavailable — using a made-up callsign");
     expect(s.provenance).toEqual({ weather: dep.weather.provenance, airport: dep.airport.provenance, flight: flight.provenance });
+  });
+});
+
+describe("shipped airports.json (approaches still TODO)", () => {
+  test.each(["ifr_clearance", "takeoff", "departure"] as const)("KTTD %s builds", (type) => {
+    expect(Scenario.parse(build(type, SEED, AIRPORTS.KTTD))).toBeTruthy();
+  });
+
+  test.each(["approach_vectors", "approach_clearance"] as const)("KTTD %s → 422 naming approaches", (type) => {
+    expect(() => build(type, SEED, AIRPORTS.KTTD)).toThrow(`KTTD needs approaches in airports.json for ${type}`);
   });
 });

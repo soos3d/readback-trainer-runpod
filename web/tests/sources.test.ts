@@ -8,10 +8,12 @@ import kttdArrivals from "./fixtures/KTTD-arrivals.json";
 import korlDepartures from "./fixtures/KORL-departures.json";
 import kvgtDepartures from "./fixtures/KVGT-departures.json";
 import token from "./fixtures/opensky-token.json";
+import airportsJson from "@/lib/airports.json";
 
 const NOW = Date.UTC(2026, 9, 23, 16, 0); // fixtures recorded 2026-10-23 ~16:00Z
 const MIN = 60_000;
 const GA = /^N[0-9][0-9A-Z]{0,4}$/;
+const NEARBY: readonly string[] = airportsJson.KTTD.nearby_destinations;
 
 let awc: typeof import("@/lib/sources/aviationweather");
 let opensky: typeof import("@/lib/sources/opensky");
@@ -25,6 +27,7 @@ beforeEach(async () => {
   opensky = await import("@/lib/sources/opensky");
 });
 afterEach(() => {
+  vi.doUnmock("@/lib/schemas");
   vi.useRealTimers();
   vi.unstubAllGlobals();
   vi.unstubAllEnvs();
@@ -182,12 +185,10 @@ describe("getFlight", () => {
     stubFetch((url) => (url.includes("/flights/") ? json({}, 429) : undefined));
     const f = await settle(opensky.getFlight("KTTD", "departure", { now: () => NOW, seed: 3 }));
     expect(f.data.tail).toMatch(GA);
-    expect(f.data).toMatchObject({ other_airport: "KTTD", date: null });
+    expect(f.data.date).toBeNull();
+    expect(NEARBY).toContain(f.data.other_airport);
     expect(f.provenance).toEqual({ source: "synthetic" });
-    expect(f.warnings).toEqual([
-      "Flight data unavailable — using a made-up callsign",
-      "No nearby airports set for KTTD — using KTTD itself as the destination",
-    ]);
+    expect(f.warnings).toEqual(["Flight data unavailable — using a made-up callsign"]);
     const again = await settle(opensky.getFlight("KTTD", "departure", { now: () => NOW, seed: 3 }));
     expect(again).toEqual(f);
   });
@@ -204,10 +205,27 @@ describe("getFlight", () => {
   test("404 (no flights) gives the no-GA warning", async () => {
     stubFetch((url) => (url.includes("/flights/") ? new Response(null, { status: 404 }) : undefined));
     const f = await opensky.getFlight("KTTD", "arrival", { now: () => NOW });
-    expect(f.warnings).toEqual([
-      "No GA flights found yesterday — made-up callsign",
-      "No nearby airports set for KTTD — using KTTD itself as the origin",
-    ]);
+    expect(NEARBY).toContain(f.data.other_airport);
+    expect(f.warnings).toEqual(["No GA flights found yesterday — made-up callsign"]);
+  });
+
+  test("nearby_destinations TODO: synthetic flight uses the airport itself and says so", async () => {
+    vi.doMock("@/lib/schemas", async (importOriginal) => {
+      const real = await importOriginal<typeof import("@/lib/schemas")>();
+      const KTTD = { ...real.AIRPORTS.KTTD, nearby_destinations: "TODO" as const };
+      return { ...real, AIRPORTS: { ...real.AIRPORTS, KTTD } };
+    });
+    vi.resetModules();
+    opensky = await import("@/lib/sources/opensky");
+    stubFetch((url) => (url.includes("/flights/") ? new Response(null, { status: 404 }) : undefined));
+    for (const [direction, role] of [["departure", "destination"], ["arrival", "origin"]] as const) {
+      const f = await opensky.getFlight("KTTD", direction, { now: () => NOW });
+      expect(f.data.other_airport).toBe("KTTD");
+      expect(f.warnings).toEqual([
+        "No GA flights found yesterday — made-up callsign",
+        `No nearby airports set for KTTD — using KTTD itself as the ${role}`,
+      ]);
+    }
   });
 
   test("token 401 falls back to synthetic", async () => {

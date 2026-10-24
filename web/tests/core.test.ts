@@ -64,9 +64,12 @@ describe("airports.json", () => {
     expect(AIRPORTS.KTTD.runways_fallback).toEqual([{ id: "07/25", alignment: 89 }]);
   });
 
-  test("unconfirmed values stay TODO", () => {
-    expect(isTodo(AIRPORTS.KORL.tower_fallback_freq)).toBe(true);
-    expect(isTodo(AIRPORTS.KVGT.min_vector_altitude)).toBe(true);
+  test("shipped file: approaches is the only TODO left, except KORL's tower fallback", () => {
+    const todos = Object.entries(AIRPORTS).flatMap(([icao, a]) =>
+      Object.entries(a).filter(([, v]) => isTodo(v) || (typeof v === "object" && Object.values(v).some(isTodo)))
+        .map(([field]) => `${icao}.${field}`),
+    );
+    expect(todos.sort()).toEqual(["KORL.approaches", "KORL.tower_fallback_freq", "KTTD.approaches", "KVGT.approaches"]);
     expect(isTodo("118.7")).toBe(false);
   });
 
