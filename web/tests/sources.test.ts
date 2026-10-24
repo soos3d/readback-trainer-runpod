@@ -145,7 +145,7 @@ describe("getAirportInfo", () => {
     const a = await settle(awc.getAirportInfo("KORL", { now: () => NOW }));
     expect(a).toEqual({
       data: {
-        name: "KORL", magdec_east_deg: 0, tower_freq: null,
+        name: "KORL", magdec_east_deg: 0, tower_freq: "118.7",
         runways: [{ id: "07/25", alignment: 67 }, { id: "13/31", alignment: 131 }],
       },
       provenance: { source: "synthetic" },

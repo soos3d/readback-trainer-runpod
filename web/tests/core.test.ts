@@ -64,12 +64,12 @@ describe("airports.json", () => {
     expect(AIRPORTS.KTTD.runways_fallback).toEqual([{ id: "07/25", alignment: 89 }]);
   });
 
-  test("shipped file: approaches is the only TODO left, except KORL's tower fallback", () => {
+  test("shipped file: only KTTD approaches is TODO (its one approach, RNAV (GPS)-A, is circling-only)", () => {
     const todos = Object.entries(AIRPORTS).flatMap(([icao, a]) =>
       Object.entries(a).filter(([, v]) => isTodo(v) || (typeof v === "object" && Object.values(v).some(isTodo)))
         .map(([field]) => `${icao}.${field}`),
     );
-    expect(todos.sort()).toEqual(["KORL.approaches", "KORL.tower_fallback_freq", "KTTD.approaches", "KVGT.approaches"]);
+    expect(todos).toEqual(["KTTD.approaches"]);
     expect(isTodo("118.7")).toBe(false);
   });
 
