@@ -155,9 +155,24 @@ Stop the Pod when you're done. Its disk still costs about $0.03 a day until you 
 
 More detail is in [docs/costs.md](docs/costs.md).
 
+## Free-tier limits and failure handling
+
+| Service | Free tier | What the app does to stay inside it |
+|---|---|---|
+| AviationWeather.gov | No key. 100 requests per minute, `User-Agent` required | Caches the METAR for 5 min (usable up to 3 h when the API fails) and airport info for 24 h |
+| OpenSky Network | Free account. 4,000 credits per day; one flight-list call costs 30 | Caches flights for 6 h per airport, direction and day |
+| Runpod Serverless | Paid per second, no free tier | Scales to zero workers; at most 1 worker |
+
+When a service fails or rate-limits:
+
+- **AviationWeather.gov or OpenSky down, slow or returning 429.** The app retries twice (6 s timeout, honoring `Retry-After` up to 5 s). Then it uses cached data, then made-up data (standard weather, a seeded N-number). The call still builds, and a banner says what was substituted.
+- **GPU cold.** The job waits in Runpod's queue. After 80 s the app returns "warming", and the UI retries twice before offering a typed readback.
+- **GPU job failed, or mic blocked.** You type the readback and get the same grading.
+- **Too many requests from one IP.** 30 per minute across all routes, 6 per minute on the two GPU routes; over that, the API returns 429 and the page shows a banner. Change the overall limit with `RATE_LIMIT_PER_MIN`.
+
 ## Try the outage handling
 
-Set `READBACK_DEMO_MODE=1` and open `/?demo=1`. Two checkboxes simulate AviationWeather.gov or OpenSky going down. The call still builds from cached or made-up data, and the page says which. The full list of fallbacks, limits and timeouts is in [docs/architecture.md](docs/architecture.md).
+Set `READBACK_DEMO_MODE=1` and open `/?demo=1`. Two checkboxes simulate AviationWeather.gov or OpenSky going down. The call still builds from cached or made-up data, and the page says which. Every fallback banner, timeout and error code is listed in [docs/architecture.md](docs/architecture.md).
 
 ## Known limits
 
