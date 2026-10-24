@@ -12,7 +12,7 @@ next-env.d.ts
 .claude/worktrees/
 speech/*-artifact.tar.gz
 web/AGENTS.md
-AGENTS.md
+BUILD-AGENTS.md
 DECISIONS.md
 SPECS.md
 SPEC.md

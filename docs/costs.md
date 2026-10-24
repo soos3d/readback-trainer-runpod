@@ -9,7 +9,7 @@ What each piece of Readback Trainer bills, how to keep it small, and how to stop
 | Speech worker (`speech/main.py`) | Runpod Serverless, 24 GB Ada (RTX 4090) | A worker is starting, running a job, or waiting out `idle_timeout` | $1.10/hr (≈ $0.00031/s) | `workers=(0, 1)`, `idle_timeout=300`, FlashBoot on |
 | Parked standby worker | Runpod Serverless | Never. A parked worker is billed only once it starts running | $0 | Kept by Runpod for every endpoint; FlashBoot restores from it |
 | Worker model weights (`runpod.Model`) and image pulls | Runpod host | Not billed while the worker is scaled down | $0 | Whisper staged by `runpod.Model`; Kokoro downloads inside the first job |
-| Next.js API backend | Runpod CPU Pod (`cpu3c`) | Every hour the Pod runs, busy or idle | $0.04 per vCPU-hour (2 vCPU ≈ $0.08/hr ≈ $1.92/day) | Smallest size that builds Next.js |
+| Next.js API backend | Runpod CPU Pod (`cpu3c`) | Every hour the Pod runs, busy or idle | $0.06/hr for 2 vCPU (≈ $1.44/day) | Smallest size that builds Next.js |
 | Pod container disk | Runpod | While the Pod exists, stopped or running | $0.10 per GB-month | A few GB; cents per day |
 | Pod volume disk | Runpod | Running $0.10, stopped $0.20 per GB-month | — | Not used |
 | AviationWeather.gov, OpenSky | External | — | $0 (rate-limited, see README) | Cached in the Pod process |
@@ -23,13 +23,11 @@ A session is: page load (warm-up ping), a few calls, a few readbacks, then the u
 | Phase | GPU time billed | Cost |
 |---|---|---|
 | Cold start (first job after scale-to-zero) | ≈ 10 s of execution (models load) plus worker boot | ≈ $0.01 |
-| Each warm job (tts 1.3 s, transcribe 2.1 s, ping 0.4 s) | Seconds | < $0.001 each |
+| Each warm job | Seconds | < $0.001 each |
 | Idle tail after the last job (`idle_timeout=300`) | 300 s | ≈ $0.09 |
 | **Session total** | | **≈ $0.10** |
 
 The idle tail dominates. Lowering `idle_timeout` to 60 s cuts it to ≈ $0.02 per session, at the price of more 30 s cold starts when a user pauses for more than a minute.
-
-Measured (T12): cold ping 29–33 s end to end (about 22 s waiting for a worker, 10 s loading both models), then cold tts 3.3 s and transcribe 2.3 s. Warm: ping 0.4–1.1 s, tts 1.4 s, transcribe 1.9 s.
 
 ## Keeping the GPU ready without paying for it all day
 

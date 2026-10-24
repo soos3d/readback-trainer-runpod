@@ -57,6 +57,48 @@ When voice is unavailable (mic blocked, worker failed, warm-up retries used up),
 3. The `ping` job loads both models, so the first real `tts` job finds a warm worker.
 4. The UI polls every 10 s and colors the GPU status dot. Polling stops once a worker is ready (`ready`, `idle` or `running` > 0) or the endpoint is offline. Only `running` means a billed worker.
 
+## The two Runpod files
+
+[`web/lib/runpod.ts`](../web/lib/runpod.ts) is the only app file that imports `runpod-sdk`:
+
+1. Wait at most 80 s per job. The Pod proxy closes requests at 100 s, so the file races `runSync` against its own timer.
+2. Connect to the speech endpoint with `RUNPOD_API_KEY` and `SPEECH_ENDPOINT_ID`, read only on the server.
+3. Send a job with `runSync` and wait for it. A job still queued at 80 s becomes `SpeechWarming` (503). A failed job becomes `SpeechFailed` (502), carrying the worker's `error_message` without the traceback.
+4. Expose the two jobs the app sends: `synthesize(text)` and `transcribe(audioWavB64)`.
+5. `warmUp()` submits a `ping` job without waiting and returns `endpoint.health()` for the GPU status dot.
+
+[`speech/main.py`](../speech/main.py) is the GPU worker, deployed with `rp flash deploy`. It has no Dockerfile:
+
+1. `runpod.App("readback-speech")`: one app per deploy.
+2. `runpod.Model(...)` declares the Whisper weights, so Runpod stages them on the host before a worker starts.
+3. `@app.queue(...)` describes the worker: 24 GB Ada GPU, 0–1 workers, 5 min idle timeout, 60 s per job, pinned dependencies.
+4. The job's `input` dict arrives as keyword arguments: `speech(task, text, audio_wav_b64, radio_effect)`.
+
+`web/scripts/smoke.ts` also imports `runpod-sdk`. It is a CLI that calls the deployed worker directly and is never bundled.
+
+The worker image `runpod/queue-gpu:py3.12-latest` ships torch (`2.9.1+cu128`), so torch is not in the dependency list. `main.py` sets `PIP_NO_DEPS=1` and `requirements.txt` pins the full dependency closure. Without this, kokoro and accelerate pull a second, CPU-only torch into the artifact, and it shadows the image's CUDA build. See [friction-log.md](friction-log.md).
+
+## Why a GPU
+
+The worker runs two models: Kokoro-82M for the controller's voice and `jacktol/whisper-large-v3-finetuned-for-ATC` for the readback. Whisper large-v3 is the heavy one, about 1.5 billion parameters, and runs in fp16 on CUDA. Serverless lets the GPU scale to zero between sessions, which an always-on GPU Pod cannot do.
+
+## Fallbacks and rate limits
+
+An upstream failure never stops a scenario. Each source falls back to a labeled substitute, and the page says what was made up:
+
+| Failure | What the app does | Banner |
+|---|---|---|
+| AWC 429, 5xx or timeout | Retry twice, then cached weather, then standard weather (calm, 29.92) | "Live weather unavailable — using weather from 42 min ago" |
+| OpenSky down or out of credits | Cached flights from the same day, else a seeded made-up callsign | "Live flight data unavailable — using a cached flight from 2026-10-23" |
+| No GA flights yesterday | Made-up callsign | "No GA flights found yesterday — made-up callsign" |
+| GPU cold, job still queued at 80 s | 503 `speech_warming`; the UI retries twice, 3 s apart, while the queued job wakes the worker | "Warming up the GPU (first call can take a minute)" |
+| Worker job failed or unreachable | 502 `speech_failed`; text-only mode | "Voice unavailable — type your readback" |
+| Microphone blocked | Text-only mode | "Microphone blocked — type your readback" |
+
+Requests are limited per IP (`cf-connecting-ip`, else `x-forwarded-for`): 30 per minute across all routes, and 6 per minute each on `/api/speak` and `/api/attempt`. Over the limit the route returns 429 and the page shows a banner.
+
+Free tiers: AviationWeather.gov needs no key, allows 100 requests per minute and requires a `User-Agent`. OpenSky gives a registered account 4,000 credits per day; a flight-list call costs 30. The caches below keep both well under their limits.
+
 ## Timeouts and caches
 
 | What | Value |
