@@ -4,14 +4,15 @@ import css from "../page.module.css";
 
 type Chip = { label: string; ok: boolean };
 
-function chips({ provenance: p, callsign }: Scenario): Chip[] {
+export function chips({ provenance: p, callsign }: Scenario): Chip[] {
   const age = p.weather.age_min === undefined ? "" : `, ${Math.round(p.weather.age_min)} min old`;
   const weather: Chip = p.weather.source === "synthetic"
     ? { label: "Weather: standard", ok: false }
     : { label: `Weather: ${p.weather.source}${age}`, ok: p.weather.source === "live" };
-  const flight: Chip = p.flight.source === "opensky"
-    ? { label: `Flight: real, ${callsign.tail}${p.flight.date ? ` on ${p.flight.date}` : ""}`, ok: true }
-    : { label: "Flight: made up", ok: false };
+  const on = p.flight.date ? ` on ${p.flight.date}` : "";
+  const flight: Chip = p.flight.source === "synthetic"
+    ? { label: "Flight: made up", ok: false }
+    : { label: `Flight: ${p.flight.source === "opensky" ? "real" : "cached"}, ${callsign.tail}${on}`, ok: p.flight.source === "opensky" };
   return [weather, flight];
 }
 
