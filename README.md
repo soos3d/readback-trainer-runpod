@@ -98,6 +98,10 @@ Your account API key is under **Settings** → **API Keys** in the Runpod consol
    The first run takes about 30 s while a GPU starts. Then it prints the voice and transcription results.
 4. Restart `npm run dev`. New calls now play audio, and you can hold the talk button to read back.
 
+**How the app finds the worker.** The endpoint ID is the only link between the web app and the worker. `web/lib/runpod.ts` reads `SPEECH_ENDPOINT_ID` and `RUNPOD_API_KEY` from the environment, and `runpod-sdk` sends each job to `https://api.runpod.ai/v2/<endpoint id>/runsync`. If either variable is missing or wrong, calls still build as text, but voice and spoken readbacks fail with `speech_failed`. Locally the values come from `web/.env.local`. On a Pod they come from Runpod secrets (step 4 below).
+
+After you run `rp flash deploy` again, compare the ID on its last line with `SPEECH_ENDPOINT_ID`. If the ID changed, update `.env.local` and the `readback_endpoint_id` secret, scope the Restricted key to the new endpoint, and restart the Pod.
+
 ## 4. Put the app online on a Runpod Pod
 
 Push your copy of the repo to GitHub, then in the Runpod console:
@@ -136,6 +140,18 @@ Push your copy of the repo to GitHub, then in the Runpod console:
 6. Deploy. After about a minute, open `https://<POD_ID>-3000.proxy.runpod.net`.
 
 Each restart clones the latest `main` and rebuilds, so restarting the Pod deploys your newest push.
+
+## 5. Run Focused tests
+
+This runs a limited suite of tests focused on the workflow:
+
+From `web/`:
+
+```
+cd web
+npm ci                                  # first time only
+npx vitest run tests/workflow.test.ts   # just the 6 workflow tests
+```
 
 ## Deploy it with a coding agent
 

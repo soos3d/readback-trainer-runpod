@@ -1,74 +1,25 @@
 # Runpod friction log
 
-Where Runpod's tools or docs behaved differently from what we expected, one section per task.
+What slowed me down building Readback Trainer on Runpod (Flash `runpod` 2.0.0rc1, `runpod-sdk` 1.1.2). I built it with a coding agent, so there are two lists.
 
-## 2026-10-23 · T02 spike (runpod 2.0.0rc1, runpod-sdk 1.1.2)
+## As a developer
 
-- **Login needs no browser.** `rp` reads `RUNPOD_API_KEY` from the environment (`runpod/apps/utils/network.py`). `rp login --api-key <key>` also exists and skips the browser flow. The spike never ran `rp login`.
+- **"Live" didn't mean live.** After a redeploy, workers kept running the old code for 7 to 20 minutes. Now I ping after every deploy until the new code answers.
+- **A second torch got bundled.** Libraries that depend on torch pulled it back into the deploy, over the image's CUDA build. Fixed with `PIP_NO_DEPS=1` and pinned dependencies.
+- **A hidden 100 s timeout.** The Pod URL cuts requests at 100 s, and `runSync` can wait about twice its timeout. I added my own 80 s limit.
+- **`/health` looked like I was paying.** `idle: 1` after scale-down isn't billed; only `running` is.
+- **SDK types don't match responses.** Failed and timed-out jobs return fields the types don't have, so I validate every response.
+- **Errors include the full traceback.** I keep only the message so file paths don't reach the browser.
 
-- **`@app.queue` worked first try.** No fallback was needed. `rp flash deploy` from `speech/` took 68 s and printed the endpoint ID on its last line (`speech  <id> ↗`). The endpoint name is the function name (`speech`), not the app name.
+## As a coding agent
 
-- **`requirements.txt` ships to the worker.** `rp flash deploy` vendors every line of `speech/requirements.txt` plus each decorator's `dependencies`. With `runpod` and `pytest` listed, the artifact held 107 packages (59.5 MB). torch and the other large packages are skipped automatically because the builtin GPU image already has them.
+- **No API for secrets.** REST and the MCP server don't cover them; the agent used an undocumented GraphQL mutation.
+- **No reliable "deploy finished" signal.** The status said ready before workers ran the new build.
+- **Deploy output is plain text.** The endpoint ID has to be scraped from the last line; a `--json` flag would help.
 
-- **torch is already on the GPU image.** The builtin image `runpod/queue-gpu:py3.12-latest` preinstalls torch, so the ping worker reads the GPU name with `torch.cuda.get_device_name(0)` and lists no dependencies.
+## What just worked
 
-- **`input` maps to keyword arguments.** The runtime calls `fn(**job["input"])` (`runpod_sdk_runtime/queue/worker.py` line 105, visible in the traceback below).
-
-- **curl `runsync` shape (cold worker, 28.9 s):**
-```
-{"delayTime":28305,"executionTime":131,"id":"sync-9fbf…-u2",
- "output":{"gpu":"NVIDIA GeForce RTX 4090","load_count":1,"models_loaded":false,"ok":true},
- "status":"COMPLETED","workerId":"1wpo89df4y98tb"}
-```
-
-- **A raised exception gives `status: "FAILED"`, and `error` is a JSON string, not an object:**
-```
-{"delayTime":18,"error":"{\"error_type\": \"<class 'ValueError'>\", \"error_message\": \"unknown task: bogus\",
- \"error_traceback\": \"Traceback …\", \"hostname\": \"…\", \"worker_id\": \"…\", \"runpod_version\": \"2.0.0rc1\"}",
- "id":"…","status":"FAILED","workerId":"…"}
-```
-`lib/runpod.ts` should `JSON.parse(error)` and pass on `error_message` only. The traceback includes file paths and must not reach the browser.
-
-- **runpod-sdk 1.1.2 types don't match its responses.**
-  - `runpodSdk(key).endpoint(id)` is typed `Endpoint | null`, so callers need a null check under `strict`.
-  - `runSync()` is typed `Promise<EndpointCompletedOutput>`. It actually returns the raw body plus `started`, `completed` and `succeeded`; a FAILED job carries `error`, which the type lacks, and a timeout returns no `output`.
-  - `health()` returns `workers.unhealthy`, which `HealthCheck` lacks.
-  - `runSync()` calls `console.log("<id>: <status>")` on every poll, so a cold start writes to server logs. Its timeout clock starts after the first `/runsync` returns, so the worst case is about two timeouts.
-
-- **Cache survives on a warm worker.** Two pings 1 s apart both returned `load_count: 1` from worker `1wpo89df4y98tb`.
-
-- **`idle` in `/health` is not a billed worker.** After scale-down, `/health` reports `workers: {idle: 1, ready: 1, running: 0}`, so `idle` alone does not mean a billed worker. Use `running` to check for one.
-
-## 2026-10-23 · T12 part 1 (`web/lib/runpod.ts`, runpod-sdk 1.1.2)
-
-- **runSync can't be bounded or cancelled from outside.** It takes no AbortSignal, and its timeout restarts after the first `/runsync` returns. `lib/runpod.ts` races it against its own 80 s timer and maps the deadline to `SpeechWarming`. The losing runSync keeps polling `/status-sync` until its own timeout (up to about 160 s more) and its result is dropped. Status polls aren't billed, and the queued job keeps warming the worker.
-
-- **runSync's poll logging stays.** Every poll writes `<job id>: <status>` through `console.log` (`const print = console.log` in `dist/src/index.js`). The lines carry a job id and a status, no input or secret. We don't monkeypatch `console`. A cold start adds a few log lines per request on the Pod.
-
-## 2026-10-23 · T10 worker build (runpod 2.0.0rc1, offline)
-
-- **Torch is excluded by name, not by dependency.** `runpod/apps/build.py` removes `torch`, `torchvision`, `torchaudio` and `triton` from the top-level requirement list, then vendors the rest with `pip install --target env/ --platform manylinux… --only-binary :all:`. pip still resolves dependencies, so any package that depends on torch (kokoro, accelerate, spacy-curated-transformers) brings torch back. A dry run resolved `torch 2.14.1` into the artifact. pip evaluates the `platform_system == "Linux"` markers against the Mac that runs the deploy, so the nvidia-* CUDA wheels were left out as well.
-
-- **The vendored env comes first on the worker.** `runpod_sdk_runtime/bootstrap.py` `_attach()` prepends `env/` to `PYTHONPATH`, so a vendored torch would replace the image's `torch==2.9.1+cu128` (`docker/gpu-base.Dockerfile` in github.com/runpod-workers/sdk-runtime).
-
-- **Workaround.** `main.py` sets `os.environ.setdefault("PIP_NO_DEPS", "1")`. `rp` imports `main.py` in-process to discover the app, so its pip subprocess inherits the variable. `requirements.txt` then pins the full closure without torch, sympy, mpmath, networkx and triton, plus the runtime's own packages (aiohttp, yarl, multidict…). `rp flash deploy --build-only` produced a 223.8 MB artifact with no torch, nvidia or triton entries. Regenerate the closure with `pip install --dry-run --report` using the same `--platform` flags whenever a direct pin changes.
-
-- **`system_dependencies` run apt on every cold start.** The bootstrap runs `apt-get update` and `apt-get install` for each `system_dependencies` entry at boot, so each package adds seconds to every cold start. Kokoro's espeak-ng comes bundled in the `espeakng-loader` wheel, so the worker lists none.
-
-- **`--build-only` needs no API key.** It writes `<app>-artifact.tar.gz` next to the source and imports every `.py` in the folder, test files included. `.runpodignore` keeps `test_*.py` out of the tarball; discovery still imports them.
-
-## 2026-10-23 · T12 part 2 (first deploy of the full worker)
-
-**A redeploy doesn't take effect right away.** `rp flash deploy` printed "readback-speech/default is live" at about 23:14Z, and GraphQL showed the new build as `activeBuildId`. Workers still ran the T02 ping-only code for at least 7 more minutes, including a fresh cold worker at 23:21Z. Jobs failed with `TypeError: speech() got an unexpected keyword argument 'radio_effect'`. The environment's `state` stayed `INITIALIZING` throughout. By 23:34Z the new code was serving (ping returned `models_loaded: true`); the state still read `INITIALIZING`. After a deploy, ping until `models_loaded` is `true` before trusting a result. The build's `RUNPOD_BUILD_ID` env var is not proof that a worker runs that build.
-
-**Cold start with both models fits the 60 s cap.** Cold ping (Whisper large-v3 staged by `runpod.Model`, Kokoro downloaded from HF): 29.3 s and 32.6 s from the client. In the 32.6 s run, `delayTime` was 22.3 s and `executionTime` (the model load) was 10.0 s, so `execution_timeout_ms=60_000` has room.
-
-**Scale-down takes idle_timeout plus about a minute.** `/health` showed `running: 1` until about 5–6 min after the last job, then `idle: 1, ready: 1, running: 0`.
-
-## 2026-10-24 · T17 CPU Pod deploy
-
-**Secrets have no REST endpoint.** `https://rest.runpod.io/v1` covers Pods, endpoints, templates and volumes but not secrets, and the secrets docs page only describes the console. The GraphQL mutation `secretCreate(input: {name: String!, value: String!})` works with a full-access key; GraphQL introspection is disabled, so we found the input shape from the validation error of a deliberately bad call.
-
-**Multi-line secrets.** An SSH private key has newlines. We stored it base64-encoded and decoded it in the start command, so we never had to find out how `{{ RUNPOD_SECRET_… }}` substitution treats newlines.
-
-**Fast first boot.** The `cpu3c` Pod (2 vCPU, 4 GB, EU-SE-1) answered `/api/airports` with 200 about 37 s after `POST /v1/pods` returned, including apt-get, clone, `npm ci` and `next build`. 4 GB was enough for `next build`; no need for `cpu3g`.
+- A GPU worker deployed on the first try with no Dockerfile.
+- The CLI reads the API key from the environment, so there's no browser login.
+- Cold start was about 30 s, with the Whisper weights staged ahead of time.
+- The CPU Pod was serving the app about 37 s after it was created.

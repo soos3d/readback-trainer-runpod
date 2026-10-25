@@ -1,5 +1,16 @@
-/* Single column, mobile first, 640 px max (SPEC §14.4). Tokens live in globals.css. */
+/* Single column, mobile first, 640 px max (SPEC §14.4); the guide moves to a right column at 1000 px. Tokens live in globals.css. */
 .page { max-width: 640px; margin: 0 auto; padding: var(--sp-16); min-height: 100dvh; display: flex; flex-direction: column; gap: var(--sp-24); }
+.layout { display: flex; flex-direction: column; gap: var(--sp-24); flex: 1; }
+@media (min-width: 1000px) {
+  .page { max-width: 1040px; }
+  .layout { display: grid; grid-template-columns: minmax(0, 640px) minmax(0, 1fr); align-items: start; }
+  .guide { position: sticky; top: var(--sp-16); }
+}
+.guide { display: flex; flex-direction: column; gap: var(--sp-12); padding: var(--sp-16); border: 1px solid var(--border); border-radius: var(--radius); }
+.bubble { display: flex; flex-direction: column; gap: 4px; padding: var(--sp-12); background: var(--surface-2); border-radius: var(--radius); border-left: 3px solid var(--focus); }
+.bubble[data-who="you"] { border-left-color: var(--accent); }
+.bubble > span { font-size: var(--fs-12); font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-muted); }
+.guide mark { background: none; color: var(--accent); font-weight: 600; }
 .main { display: flex; flex-direction: column; gap: var(--sp-16); flex: 1; }
 
 .header { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-12); flex-wrap: wrap; }

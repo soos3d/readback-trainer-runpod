@@ -3,6 +3,9 @@
 //   2. POST /api/grade grades a typed readback
 //   3. POST /api/attempt sends recorded audio to the GPU for a transcript, then grades it
 // Both APIs answer with real responses recorded in tests/fixtures/. Only the GPU worker (lib/runpod) is mocked.
+
+// Run with: npx vitest run tests/workflow.test.ts   
+
 import { beforeEach, describe, expect, test, vi } from "vitest";
 import * as scenarioRoute from "@/app/api/scenario/route";
 import * as gradeRoute from "@/app/api/grade/route";

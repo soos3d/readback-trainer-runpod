@@ -8,6 +8,7 @@ import { RequestFailed, get, post, toFailure } from "./components/api";
 import { CallCard } from "./components/CallCard";
 import { Controls } from "./components/Controls";
 import { DemoPanel } from "./components/DemoPanel";
+import { Guide } from "./components/Guide";
 import { Header } from "./components/Header";
 import { ReadbackCard } from "./components/ReadbackCard";
 import { ResultCard } from "./components/ResultCard";
@@ -152,6 +153,7 @@ export default function Page({ searchParams }: { searchParams: SearchParams }) {
   return (
     <div className={css.page}>
       <Header gpu={s.gpu} />
+      <div className={css.layout}>
       <main className={css.main}>
         <Controls airports={s.airports} busy={busy} formRef={form} onSubmit={(d) => void newCall(d)} />
         <StatusArea state={s} onRetry={retry} />
@@ -170,6 +172,8 @@ export default function Page({ searchParams }: { searchParams: SearchParams }) {
             onTryAgain={() => dispatch({ type: "try_again" })} onNext={nextCall} />
         )}
       </main>
+      <Guide type={s.scenario?.type ?? "takeoff"} />
+      </div>
       <footer className={css.footer}>
         <p>Training aid only. Not for real-world navigation or ATC communication.</p>
         {demo && <DemoPanel />}
